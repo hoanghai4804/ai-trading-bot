@@ -8,7 +8,7 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 0 | git init + .gitignore | done | 8684c32 |
 | 1 | Project skeleton, strict config, tests | done | 7c524f7 |
 | 2 | Alpaca connection + paper guard | done | e7f7550 |
-| 3 | Data & indicators | todo | |
+| 3 | Data & indicators | done, waiting for approval | — |
 | 4 | Strategy (MA crossover) | todo | |
 | 5 | Risk manager + circuit breakers | todo | |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | todo | |
@@ -35,3 +35,13 @@ Plan: [docs/PLAN.md](PLAN.md).
 - Lessons: alpaca-py stores the base URL as a `BaseURL` enum (check `.value`, not `str()`);
   portfolio history reports 0 equity for days before funding → dropped.
 - 38 tests pass.
+
+### Phase 3 — Data & indicators
+- `data/market_data.py`: Alpaca adjusted daily bars (SIP from 2016; IEX fallback only has data from 2020-07),
+  indexed by New York date, `get_bars(..., as_of)` never returns rows after `as_of`, default `as_of` = yesterday (NY).
+- Cache `data/cache/<SYMBOL>.parquet` (git-ignored) reused only on the day it was fetched: adjusted prices are
+  rescaled by each new dividend/split, so appending to an old cache would mix adjustment bases.
+- `indicators/technical.py`: SMA, true range, ATR (Wilder, seeded with SMA), daily returns, return correlation
+  (NaN when overlap < lookback → callers must treat as unknown).
+- CLI `data [--as-of]` checked on real data (as of 2026-10-08: highest 60-day corr AMZN/GOOGL 0.69 < 0.8).
+- 56 tests pass.
