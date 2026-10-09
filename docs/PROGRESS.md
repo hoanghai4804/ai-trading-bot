@@ -23,3 +23,6 @@ Plan: [docs/PLAN.md](PLAN.md).
 - CLI `python -m tradingbot config`; 14 tests pass.
 - `CLAUDE.md`, `memory/strategy.md` (later-phase ideas), `.gitattributes` (LF), `.env.example`.
 - Open: SEC/TAF fee rates in config should be re-checked periodically (backtest only).
+
+### Plan change — GitHub repo created early
+- Private repo `ai-trading-bot` created with gh after phase 1; push after every approved phase.

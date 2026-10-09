@@ -27,6 +27,10 @@ Committed and pushed to `main` after every run: `state/HALT.lock`, `state/equity
 `state/last_run.json`, `memory/`, `reports/`, `runs/`.
 Never committed: `state/run.lock`, `data/cache/`, `logs/`, `.env`, `.venv`.
 
+## Git workflow
+Remote `origin` = private GitHub repo `ai-trading-bot`, branch `main`. After each phase is approved:
+commit → `git push`. Before any push, confirm `.env` is not tracked (`git ls-files | grep -x .env` must be empty).
+
 ## Dev commands
 ```
 py -3.11 -m venv .venv

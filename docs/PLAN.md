@@ -24,7 +24,7 @@ bản tóm tắt gọn + tìm tin + viết báo cáo tiếng Việt. Giai đoạ
 | Walk-forward | Train 3 năm / test 6 tháng, lưới fast {10,20,30} × slow {50,100}, chọn theo Sharpe; báo cáo song song MA20/50 cố định |
 | Lịch chạy | Cấu hình trong `config.yaml` (xem mục Tần suất); mặc định chỉ thứ Hai, full report |
 | Ngày lễ | Python kiểm tra `clock`; sàn đóng → vẫn tính toán + báo cáo, không gửi lệnh |
-| Git | Chỉ local; tạo repo private + push ở giai đoạn cuối |
+| Git | Repo GitHub PRIVATE `ai-trading-bot` (tạo bằng gh ngay sau giai đoạn 1, remote `origin`, nhánh `main`); push sau mỗi giai đoạn đã commit |
 | Thông báo | Discord webhook (`DISCORD_WEBHOOK_URL`), Python gửi, lỗi gửi không làm hỏng lần chạy |
 
 ## Tần suất chạy cấu hình được (không viết cứng)
@@ -129,7 +129,7 @@ Ai-trading-bot/
 └── prompts/weekly_run.md      # chạy được trong phiên Claude Code mới hoàn toàn
 ```
 
-## Các giai đoạn (mỗi giai đoạn: test pass → DỪNG, tóm tắt tiếng Việt, chờ duyệt → commit)
+## Các giai đoạn (mỗi giai đoạn: test pass → DỪNG, tóm tắt tiếng Việt, chờ duyệt → commit → push)
 1. **Khung project**: `git init`, `.gitignore` (kiểm tra `.env` bị ignore *trước* commit đầu), venv, pyproject,
    requirements, config.yaml + loader, CLAUDE.md. Test: load/validate config.
 2. **Kết nối Alpaca**: `safety.py`, `alpaca_client.py`, lệnh `check` (in equity, trạng thái sàn, không in key).
@@ -150,7 +150,7 @@ Ai-trading-bot/
 9. **Prompt chạy định kỳ**: `prompts/weekly_run.md` (`should-run` → kiểm tra HALT → cài deps → `run` → đọc summary
    + memory → nếu full: ≤4 lượt WebSearch tin tức/sự kiện → viết báo cáo → `notify report` → cập nhật memory →
    `compact` → commit/push),
-   hướng dẫn tạo repo private + routine cloud + env vars.
+   hướng dẫn nối repo private (đã có từ giai đoạn 1) với routine cloud + env vars.
 
 ## Verification
 - `pytest -q` pass ở mỗi giai đoạn (test không gọi mạng).
