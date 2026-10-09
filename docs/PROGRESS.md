@@ -7,7 +7,7 @@ Plan: [docs/PLAN.md](PLAN.md).
 |---|---|---|---|
 | 0 | git init + .gitignore | done | 8684c32 |
 | 1 | Project skeleton, strict config, tests | done | 7c524f7 |
-| 2 | Alpaca connection + paper guard | done, waiting for approval | — |
+| 2 | Alpaca connection + paper guard | done | e7f7550 |
 | 3 | Data & indicators | todo | |
 | 4 | Strategy (MA crossover) | todo | |
 | 5 | Risk manager + circuit breakers | todo | |
