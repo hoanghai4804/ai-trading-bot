@@ -1,0 +1,10 @@
+# Pinned for reproducible local and cloud runs (Python 3.11)
+alpaca-py==0.44.0
+numpy==2.4.6
+pandas==3.0.6
+pyarrow==26.0.0
+pydantic==2.14.0
+python-dotenv==1.2.4
+PyYAML==6.0.3
+requests==2.34.2
+pytest==9.1.1

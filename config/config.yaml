@@ -1,0 +1,72 @@
+# Single source of truth for every tunable parameter.
+# Validated at startup by src/tradingbot/config.py (unknown keys are rejected).
+
+# Safety: only "paper" is accepted. Any other value aborts the program.
+mode: paper
+
+# Tradable universe (long-only). SPY is both tradable and the benchmark.
+watchlist: [AAPL, MSFT, NVDA, AMZN, GOOGL, META, JPM, XOM, JNJ, PG, SPY]
+benchmark_symbol: SPY
+
+strategy:
+  name: ma_crossover
+  params:
+    fast: 20
+    slow: 50
+    cross_lookback_sessions: 5   # buy only if the up-cross happened within the last N sessions
+
+risk:
+  max_position_pct: 0.05          # max 5% of equity per symbol
+  risk_per_trade_pct: 0.01        # max 1% of equity lost if the stop is hit
+  max_new_positions_per_week: 3   # counted per calendar week from order history
+  atr_period: 14
+  atr_stop_multiple: 2.0          # stop = reference price - 2 x ATR
+  max_gap_pct: 0.03               # skip entry if reference price moved >3% vs last Friday close
+  correlation:
+    lookback_days: 60
+    max_corr: 0.8                 # block a new entry too similar to an existing/approved one
+  circuit_breakers:
+    weekly_loss_pct: 0.05         # previous calendar week lost >5% -> no new positions this week
+    max_drawdown_pct: 0.10        # 10% from peak -> liquidate, write state/HALT.lock, stop
+
+execution:
+  order_id_prefix: tb             # client_order_id = tb-<date>-<symbol>-<side>
+  sell_fill_timeout_sec: 60       # wait this long for a market sell before treating it as failed
+  run_lock_ttl_min: 30            # state/run.lock older than this is considered stale
+
+data:
+  feed: sip                       # historical daily bars; falls back to fallback_feed on permission error
+  fallback_feed: iex
+  history_days: 400               # calendar days fetched for live runs (enough for MA50/ATR/corr)
+  cache_dir: data/cache
+
+costs:
+  slippage_bps: 5                 # per side
+  sec_fee_rate: 0.0000278         # SEC fee, fraction of sell notional (check periodically)
+  taf_fee_per_share: 0.000166     # FINRA TAF on sells
+  taf_fee_max: 8.30
+
+backtest:
+  start: 2016-01-01
+  initial_capital: 100000
+  train_years: 3
+  test_months: 6
+  fast_grid: [10, 20, 30]
+  slow_grid: [50, 100]
+  random_seeds: 50
+
+schedule:
+  timezone: America/New_York
+  # Add a line to run on more days (and add that day to the cloud cron). Calendar-week
+  # limits are computed from order history, so they do not depend on the number of runs.
+  runs:
+    - {weekday: MON, report: full}
+    # - {weekday: WED, report: brief}
+
+notify:
+  discord_enabled: true
+  timeout_sec: 10
+  max_retries: 2
+
+memory:
+  keep_weeks_detailed: 4
