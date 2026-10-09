@@ -16,6 +16,14 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
+## Next step (resume here)
+- Last session ended 2026-10-09 after phase 3 was committed and pushed.
+- Next: **phase 4 — Strategy** (see docs/PLAN.md §Các giai đoạn, item 4):
+  `strategies/base.py` (Strategy ABC + Signal), `strategies/ma_crossover.py`, `strategies/registry.py`;
+  buy = MA20 crossed above MA50 within `cross_lookback_sessions` and still above; exit = MA20 < MA50 while held;
+  no re-entry on a symbol closed after the cross date. Tests: up/down cross, cross too old, already held, no-lookahead.
+- Workflow reminder: tests pass → stop and summarize in Vietnamese → wait for approval → commit → push.
+
 ## Log
 ### Phase 1 — Project skeleton
 - Python 3.11 venv, pinned `requirements.txt`, editable package `src/tradingbot`.
