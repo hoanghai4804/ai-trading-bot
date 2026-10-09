@@ -1,0 +1,27 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local-only runtime artifacts (NOT persisted across cloud runs)
+data/cache/
+logs/
+state/run.lock
+
+# NOTE: state/HALT.lock, state/equity_history.csv, state/last_run.json,
+# memory/, reports/ and runs/ ARE committed: they are the bot's durable state.
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
