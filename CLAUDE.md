@@ -37,6 +37,7 @@ py -3.11 -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.txt && .venv/Scripts/python -m pip install -e . --no-deps
 .venv/Scripts/python -m pytest
 .venv/Scripts/python -m tradingbot config      # validate config
+.venv/Scripts/python -m tradingbot check       # paper account + market status (exit 2 = safety abort)
 ```
 
 ## Key decisions

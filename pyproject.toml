@@ -14,3 +14,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = [
+    # third-party (alpaca-py -> websockets), not our code
+    "ignore:websockets.legacy is deprecated:DeprecationWarning",
+]

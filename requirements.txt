@@ -7,4 +7,5 @@ pydantic==2.14.0
 python-dotenv==1.2.4
 PyYAML==6.0.3
 requests==2.34.2
+tzdata==2026.5  # IANA time zones for zoneinfo on Windows
 pytest==9.1.1

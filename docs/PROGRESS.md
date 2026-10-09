@@ -7,7 +7,7 @@ Plan: [docs/PLAN.md](PLAN.md).
 |---|---|---|---|
 | 0 | git init + .gitignore | done | 8684c32 |
 | 1 | Project skeleton, strict config, tests | done | 7c524f7 |
-| 2 | Alpaca connection + paper guard | todo | |
+| 2 | Alpaca connection + paper guard | done, waiting for approval | — |
 | 3 | Data & indicators | todo | |
 | 4 | Strategy (MA crossover) | todo | |
 | 5 | Risk manager + circuit breakers | todo | |
@@ -26,3 +26,12 @@ Plan: [docs/PLAN.md](PLAN.md).
 
 ### Plan change — GitHub repo created early
 - Private repo `ai-trading-bot` created with gh after phase 1; push after every approved phase.
+
+### Phase 2 — Alpaca connection + paper guard
+- `safety.py`: live-endpoint env check, client base-URL check, `PA` account check, HALT.lock, run.lock (TTL).
+- `credentials.py`: keys from env (`.env` only if present, never overrides), repr hides secrets.
+- `broker/alpaca_client.py`: account / clock / positions / daily equity history as plain dataclasses.
+- CLI `check` verified against the real paper account (PA…2VKZ, equity 100,000, market open).
+- Lessons: alpaca-py stores the base URL as a `BaseURL` enum (check `.value`, not `str()`);
+  portfolio history reports 0 equity for days before funding → dropped.
+- 38 tests pass.
