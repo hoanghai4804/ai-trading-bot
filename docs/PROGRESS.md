@@ -6,7 +6,7 @@ Plan: [docs/PLAN.md](PLAN.md).
 | # | Phase | Status | Commit |
 |---|---|---|---|
 | 0 | git init + .gitignore | done | 8684c32 |
-| 1 | Project skeleton, strict config, tests | done, waiting for approval | — |
+| 1 | Project skeleton, strict config, tests | done | 7c524f7 |
 | 2 | Alpaca connection + paper guard | todo | |
 | 3 | Data & indicators | todo | |
 | 4 | Strategy (MA crossover) | todo | |
