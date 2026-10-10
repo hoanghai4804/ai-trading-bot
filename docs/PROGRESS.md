@@ -9,7 +9,7 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 1 | Project skeleton, strict config, tests | done | 7c524f7 |
 | 2 | Alpaca connection + paper guard | done | e7f7550 |
 | 3 | Data & indicators | done | 4dd1754 |
-| 4 | Strategy (MA crossover) | done (awaiting commit) | |
+| 4 | Strategy (MA crossover) | done | f16bc77 |
 | 5 | Risk manager + circuit breakers | todo | |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | todo | |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
@@ -17,7 +17,7 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Phase 4 implemented 2026-10-10, tests pass; waiting for user approval → commit → push.
+- Last session ended 2026-10-10 after phase 4 was committed and pushed.
 - Then: **phase 5 — Risk manager + circuit breakers** (docs/PLAN.md §Các giai đoạn, item 5).
 - Workflow reminder: tests pass → stop and summarize in Vietnamese → wait for approval → commit → push.
 
