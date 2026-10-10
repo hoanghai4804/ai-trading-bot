@@ -9,6 +9,8 @@ sizing, risk checks); Claude only reads compact summaries, searches news and wri
 ## Hard rules
 - PAPER ONLY. `config.mode` must be `paper`; code aborts on any live endpoint/config. Never real money.
 - Never print, log or ask for keys. Secrets come from env vars (`.env` locally, never committed).
+- NEVER read `.env` in any way (no cat/grep/awk/wc/sed/Read on it, not even names or lengths). To check that a
+  variable exists, use `python -m tradingbot env-check` (loads the environment, prints only set/missing).
 - Long-only stocks/ETFs. No leverage, no short, no options.
 - Risk manager is independent of strategies and can veto any order; every blocked order is logged with a reason.
 - No look-ahead: every function takes `as_of`; data is cut at `<= as_of`.
@@ -19,12 +21,15 @@ sizing, risk checks); Claude only reads compact summaries, searches news and wri
 - `config/config.yaml` — watchlist, strategy, risk, costs, backtest, schedule, notify
 - `src/tradingbot/` — package (`python -m tradingbot <command>`)
 - `tests/` — pytest, no network calls
-- `memory/` — strategy, portfolio, journal, lessons (short; 4 weeks detailed, older summarized)
-- `prompts/weekly_run.md` — prompt for the scheduled run (fresh session)
+- `memory/` — strategy, portfolio (Python-written), journal, lessons (`compact`: 4 weeks detailed, older in
+  `journal_archive.md`, not read by default)
+- `runs/<date>/` — summary.md (~40 lines, first line = MODE; the ONLY computed file to read), summary.json, decisions.json
+- `prompts/weekly_run.md` — prompt for the scheduled run (fresh session); `prompts/templates/report_{full,brief}.md`
 
 ## Persistent state (cloud runs)
 Committed and pushed to `main` after every run: `state/HALT.lock`, `state/equity_history.csv`,
-`state/last_run.json`, `state/stops.json`, `memory/`, `reports/`, `runs/`.
+`state/last_run.json`, `state/stops.json`, `state/execution_quality.csv`, `data/sentiment/sentiment_log.csv`,
+`memory/`, `reports/`, `runs/`.
 Never committed: `state/run.lock`, `data/cache/`, `logs/`, `.env`, `.venv`.
 
 ## Git workflow
@@ -37,11 +42,17 @@ py -3.11 -m venv .venv
 .venv/Scripts/python -m pip install -r requirements.txt && .venv/Scripts/python -m pip install -e . --no-deps
 .venv/Scripts/python -m pytest
 .venv/Scripts/python -m tradingbot config      # validate config
+.venv/Scripts/python -m tradingbot env-check   # required env vars: set/missing only (never values)
 .venv/Scripts/python -m tradingbot check       # paper account + market status (exit 2 = safety abort)
 .venv/Scripts/python -m tradingbot data        # watchlist indicators up to yesterday (--as-of YYYY-MM-DD)
 .venv/Scripts/python -m tradingbot signals     # strategy proposals only, no risk/orders (--as-of, --held)
 .venv/Scripts/python -m tradingbot run         # weekly run, DRY-RUN unless --execute (paper orders)
 .venv/Scripts/python -m tradingbot test-order  # MANUAL only (never in the weekly run): 1 SPY + OTO stop, verify, close; --execute
+.venv/Scripts/python -m tradingbot backtest    # reports/backtest/ (walk-forward, 3 benchmarks)
+.venv/Scripts/python -m tradingbot notify report [--path reports/weekly/<date>.md]   # summary + attachment
+.venv/Scripts/python -m tradingbot notify-test # one test message to Discord
+.venv/Scripts/python -m tradingbot record-sentiment --file runs/<date>/sentiment.json   # data only
+.venv/Scripts/python -m tradingbot compact     # journal: keep 4 weeks
 ```
 
 ## Key decisions
@@ -65,6 +76,13 @@ py -3.11 -m venv .venv
 - Weekly limits use calendar weeks (New York) from Alpaca order history, not run counts.
 - Runs: cloud cron Monday 15:07 UTC only; `schedule.runs` in config is the guard/extension point.
 - Drawdown breaker only checked at run time; between runs only GTC stops protect positions.
+  Peak = max(Alpaca daily portfolio history, local `state/equity_history.csv`).
+- Discord (`notify/discord.py`): never raises, never logs the webhook URL (`logs/notify.log`), messages < 2000 chars.
+  Every executor/pipeline alert goes to stderr + Discord; aborted/failed runs alert and still write a summary.
+- News sentiment (`record-sentiment`) is DATA ONLY, never read by trading code (test enforces it); same ≤4
+  WebSearch as the report; never invent a source URL.
+- Monitoring: fills vs reference price -> `state/execution_quality.csv` (bps, backtest assumes 5);
+  shadow check replays each run through the backtest path (`engine.weekly_decision`), mismatch -> alert.
 
 ## Phase status
 Tracked in `docs/PROGRESS.md` (single source; do not duplicate here).

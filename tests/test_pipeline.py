@@ -143,7 +143,11 @@ def test_cli_run_prints_mode_first(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(cli, "default_alpaca_source", lambda: None)
     monkeypatch.setattr(cli, "LatestPrices", lambda feed: type("P", (), {"get": None})())
     monkeypatch.setattr(cli, "run_weekly", lambda *a, **kw: result)
+    monkeypatch.setattr(cli, "_notifier", lambda cfg, args, tag="": type("N", (), {"alert": print})())
+    import tradingbot.reporting.summary as summary_mod
+    monkeypatch.setattr(summary_mod, "RUNS_DIR", tmp_path / "runs")
     assert cli.main(["run"]) == 0
+    assert (tmp_path / "runs" / TODAY.isoformat() / "summary.md").exists()
     assert capsys.readouterr().out.splitlines()[0].startswith("MODE: DRY-RUN")
 
 

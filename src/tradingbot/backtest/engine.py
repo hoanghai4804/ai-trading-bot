@@ -40,7 +40,7 @@ import pandas as pd
 from tradingbot.backtest.costs import CostModel
 from tradingbot.config import Config, RiskConfig
 from tradingbot.pipeline import signal_window
-from tradingbot.risk.circuit_breakers import evaluate_circuit_breakers
+from tradingbot.risk.circuit_breakers import BreakerStatus, evaluate_circuit_breakers
 from tradingbot.risk.manager import AccountState, RiskDecision, RiskManager
 from tradingbot.strategies.base import Signal, Strategy
 
@@ -173,9 +173,6 @@ def run_backtest(
     lo, hi = all_sessions.searchsorted(pd.Timestamp(start)), all_sessions.searchsorted(pd.Timestamp(end), "right")
     if lo >= hi:
         raise ValueError(f"no session between {start} and {end}")
-    min_window = int(cfg.strategy.params.get("cross_lookback_sessions", 1))
-    history_days = timedelta(days=cfg.data.history_days)
-
     cash = float(initial_capital if initial_capital is not None else cfg.backtest.initial_capital)
     positions: dict[str, Trade] = {}
     trades: list[Trade] = []
@@ -222,13 +219,6 @@ def run_backtest(
         if ts.weekday() == 0 and not halted:
             as_of = day - timedelta(days=1)
             symbols = list(dict.fromkeys([*cfg.watchlist, *sorted(positions)]))
-            window_start = pd.Timestamp(as_of - history_days)
-            window_bars = {s: bars[s].loc[window_start:pd.Timestamp(as_of)] for s in symbols if s in bars}
-            window = signal_window(window_bars, as_of, last_trading_as_of, min_window,
-                                   cfg.schedule.max_signal_window_sessions)
-            strategy = strategy_for(day, window)
-            signals = strategy.generate_signals(window_bars, as_of, positions=list(positions), last_exit=last_exit)
-
             opens = {s: float(market.open[s][i]) for s in symbols if np.isfinite(market.open[s][i])}
             equity_now = cash + sum(t.qty * opens.get(s, last_close.get(s, t.entry_price))
                                     for s, t in positions.items())
@@ -236,12 +226,10 @@ def run_backtest(
             history = history[history.index > pd.Timestamp(day - timedelta(days=BROKER_HISTORY_DAYS))]
             breakers = evaluate_circuit_breakers(equity_now, day, risk.circuit_breakers, history,
                                                  peak_since=peak_since)
-            wanted = {s.symbol for s in signals if s.action == "buy"} | set(positions)
-            account = AccountState(equity=equity_now, cash=cash,
-                                   positions={s: float(t.qty) for s, t in positions.items()},
-                                   new_positions_this_week=0)   # Monday-only runs: no earlier buy this week
-            decision = manager.review(signals, as_of, account, window_bars,
-                                      {s: p for s, p in opens.items() if s in wanted}, breakers)
+            # Monday-only runs: no earlier buy this week
+            week = weekly_decision(cfg, manager, strategy_for, day, bars, {s: float(t.qty) for s, t in positions.items()},
+                                   last_exit, last_trading_as_of, equity_now, cash, opens, breakers)
+            window, signals, decision = week.window, week.signals, week.decision
             weeks.append(WeekRecord(day, as_of, window, signals, decision))
 
             sold = []
@@ -300,6 +288,51 @@ def run_backtest(
     return BacktestResult(name=name, equity=pd.Series(marks, index=index, name=name),
                           exposure=pd.Series(exposure, index=index, name=name), trades=trades, weeks=weeks,
                           events=events, skipped_mondays=skipped, notes=notes)
+
+
+@dataclass(frozen=True)
+class WeeklyDecision:
+    window: int
+    signals: list[Signal]
+    decision: RiskDecision
+
+
+def weekly_decision(
+    cfg: Config,
+    manager: RiskManager,
+    strategy_for: StrategyFactory,
+    session: date,
+    bars: Mapping[str, pd.DataFrame],
+    positions: Mapping[str, float],
+    last_exit: Mapping[str, date],
+    last_trading_as_of: date | None,
+    equity: float,
+    cash: float,
+    ref_prices: Mapping[str, float],
+    breakers: BreakerStatus,
+    new_positions_this_week: int = 0,
+) -> WeeklyDecision:
+    """The backtest's Monday decision (also replayed on live inputs by the shadow check).
+
+    as_of = session - 1 day; bars are cut to [as_of - data.history_days, as_of] like live;
+    the gap check uses the bars' close (no raw closes) and `ref_prices` are the reference
+    prices (backtest: the session's open).
+    """
+    as_of = session - timedelta(days=1)
+    symbols = list(dict.fromkeys([*cfg.watchlist, *sorted(positions)]))
+    window_start = pd.Timestamp(as_of - timedelta(days=cfg.data.history_days))
+    window_bars = {s: bars[s].loc[window_start:pd.Timestamp(as_of)] for s in symbols if s in bars}
+    window = signal_window(window_bars, as_of, last_trading_as_of,
+                           int(cfg.strategy.params.get("cross_lookback_sessions", 1)),
+                           cfg.schedule.max_signal_window_sessions)
+    signals = strategy_for(session, window).generate_signals(window_bars, as_of, positions=list(positions),
+                                                             last_exit=last_exit)
+    wanted = {s.symbol for s in signals if s.action == "buy"} | set(positions)
+    account = AccountState(equity=equity, cash=cash, positions=dict(positions),
+                           new_positions_this_week=new_positions_this_week)
+    decision = manager.review(signals, as_of, account, window_bars,
+                              {s: p for s, p in ref_prices.items() if s in wanted}, breakers)
+    return WeeklyDecision(window, signals, decision)
 
 
 def fixed_strategy(cfg: Config) -> StrategyFactory:

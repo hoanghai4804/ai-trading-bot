@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import sys
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,7 @@ from tradingbot.credentials import MissingCredentialsError, get_alpaca_credentia
 from tradingbot.data.market_data import LatestPrices, MarketData, default_alpaca_source, today_new_york
 from tradingbot.execution.test_order import run_test_order
 from tradingbot.indicators.technical import atr, return_correlation, sma
+from tradingbot.notify.discord import DiscordNotifier, notifier_from_env
 from tradingbot.pipeline import run_weekly
 from tradingbot.reporting.run_text import format_run, mode_line
 from tradingbot.safety import RunLock, SafetyError, assert_not_halted, read_halt
@@ -30,6 +32,16 @@ def _cmd_config(args: argparse.Namespace) -> int:
     print(f"mode={cfg.mode} strategy={cfg.strategy.name} watchlist={','.join(cfg.watchlist)}")
     print("schedule=" + ", ".join(f"{r.weekday}:{r.report}" for r in cfg.schedule.runs))
     return 0
+
+
+def _cmd_env_check(args: argparse.Namespace) -> int:
+    """Print whether each required env var is set. Never prints a value."""
+    from tradingbot.credentials import env_presence
+
+    presence = env_presence()
+    for name, present in presence.items():
+        print(f"{name}: {'set' if present else 'MISSING'}")
+    return 0 if all(presence.values()) else 1
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
@@ -96,11 +108,28 @@ def _connect(args: argparse.Namespace) -> tuple[Config, BrokerClient]:
     return cfg, BrokerClient.connect(get_alpaca_credentials())
 
 
+def _notifier(cfg: Config, args: argparse.Namespace, tag: str = "") -> DiscordNotifier:
+    if getattr(args, "no_notify", False):
+        return DiscordNotifier(None, cfg.notify, tag=tag)   # alerts still go to stderr
+    return notifier_from_env(cfg.notify, tag=tag)
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
-    """Weekly run. Dry-run unless --execute: then approved orders are sent to the PAPER account."""
+    """Weekly run. Dry-run unless --execute: then approved orders are sent to the PAPER account.
+
+    Alerts go to stderr + Discord. Outputs: runs/<date>/summary.md, summary.json, decisions.json
+    (also when the run aborts: a short "aborted" summary).
+    """
+    from tradingbot.monitoring.execution_quality import load_order_refs
+    from tradingbot.reporting.summary import RUNS_DIR, write_abort_summary, write_run_outputs
+
+    cfg = load_config(args.config)
+    dry_run = not args.execute
+    notifier = _notifier(cfg, args, tag="[DRY-RUN] " if dry_run else "")
+    today = today_new_york()
     try:
         assert_not_halted()
-        cfg, broker = _connect(args)
+        _, broker = _connect(args)
         with RunLock(ttl=timedelta(minutes=cfg.execution.run_lock_ttl_min)):
             md = MarketData(source=default_alpaca_source(), config=cfg.data)
             result = run_weekly(
@@ -108,12 +137,78 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 load_bars=lambda symbols, start, as_of: md.get_bars(symbols, start=start, as_of=as_of),
                 latest_prices=LatestPrices(cfg.data.latest_price_feed).get,
                 load_raw_closes=md.get_raw_closes,
-                now=datetime.now(timezone.utc), today=today_new_york(), dry_run=not args.execute,
+                now=datetime.now(timezone.utc), today=today, dry_run=dry_run, alert=notifier.alert,
+                order_refs_history=load_order_refs(RUNS_DIR),
             )
     except (SafetyError, MissingCredentialsError) as exc:
+        print(mode_line(dry_run))
         print(f"ABORT: {exc}", file=sys.stderr)
+        notifier.alert("critical", f"run aborted: {exc}")
+        write_abort_summary(today, dry_run, f"{type(exc).__name__}: {exc}", cfg)
         return 2
+    except Exception as exc:
+        print(mode_line(dry_run))
+        notifier.alert("critical", f"run failed: {type(exc).__name__}: {exc}")
+        write_abort_summary(today, dry_run, f"error {type(exc).__name__}: {exc}", cfg)
+        raise
+    out = write_run_outputs(result, cfg)
     print("\n".join(format_run(result)))
+    print(f"outputs: {out}")
+    return 0
+
+
+def _cmd_notify_report(args: argparse.Namespace) -> int:
+    """Send the run summary (< 2000 chars) + the report file to Discord. Never raises."""
+    from tradingbot.config import PROJECT_ROOT
+    from tradingbot.reporting.summary import discord_message, latest_run_date, load_summary, run_dir
+
+    cfg = load_config(args.config)
+    day = date.fromisoformat(args.date) if args.date else latest_run_date()
+    summary = load_summary(day) if day else None
+    if summary is None:
+        print("no runs/<date>/summary.json found: nothing to send", file=sys.stderr)
+        return 1
+    path = Path(args.path) if args.path else PROJECT_ROOT / "reports" / "weekly" / f"{day.isoformat()}.md"
+    if not path.exists():
+        print(f"report {path} not found: attaching summary.md instead", file=sys.stderr)
+        path = run_dir(day) / "summary.md"
+    ok = _notifier(cfg, args).send(discord_message(summary, path.name), path)
+    print(f"notify report {day}: " + ("sent" if ok else "NOT sent (see logs/notify.log)"))
+    return 0 if ok else 1
+
+
+def _cmd_notify_test(args: argparse.Namespace) -> int:
+    cfg = load_config(args.config)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ok = _notifier(cfg, args).send(f"✅ tradingbot notify-test {stamp}: Discord hoạt động bình thường.")
+    print("notify-test: " + ("sent" if ok else "NOT sent (see logs/notify.log)"))
+    return 0 if ok else 1
+
+
+def _cmd_compact(args: argparse.Namespace) -> int:
+    from tradingbot.memory.compact import compact
+    from tradingbot.reporting.summary import MEMORY_DIR
+
+    cfg = load_config(args.config)
+    today = date.fromisoformat(args.today) if args.today else today_new_york()
+    counts = compact(MEMORY_DIR, today, cfg.memory.keep_weeks_detailed)
+    print(f"compact: kept {counts['kept']} detailed entr(y/ies), archived {counts['archived']}")
+    return 0
+
+
+def _cmd_record_sentiment(args: argparse.Namespace) -> int:
+    """Validate a sentiment JSON and upsert it into data/sentiment/sentiment_log.csv (data only)."""
+    from tradingbot.sentiment.record import SentimentError, load_file, record_sentiment
+
+    cfg = load_config(args.config)
+    try:
+        data = load_file(Path(args.file), cfg.watchlist)
+    except SentimentError as exc:
+        print(f"REJECTED: {exc}", file=sys.stderr)
+        return 1
+    md = MarketData(source=default_alpaca_source(), config=cfg.data)
+    counts = record_sentiment(data, md.get_raw_closes)
+    print(f"record-sentiment {data.date}: added {counts['added']}, replaced {counts['replaced']}")
     return 0
 
 
@@ -168,6 +263,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("config", help="validate the config file and print a short summary").set_defaults(
         func=_cmd_config
     )
+    sub.add_parser("env-check", help="required env vars: set / MISSING (never prints values)").set_defaults(
+        func=_cmd_env_check
+    )
     sub.add_parser("check", help="connect to Alpaca paper and print account/market status").set_defaults(
         func=_cmd_check
     )
@@ -180,7 +278,22 @@ def build_parser() -> argparse.ArgumentParser:
     signals.set_defaults(func=_cmd_signals)
     run = sub.add_parser("run", help="weekly run: signals -> risk -> orders (dry-run unless --execute)")
     run.add_argument("--execute", action="store_true", help="send approved orders to the PAPER account")
+    run.add_argument("--no-notify", action="store_true", help="alerts to stderr only (no Discord)")
     run.set_defaults(func=_cmd_run)
+    notify = sub.add_parser("notify", help="Discord notifications")
+    notify_sub = notify.add_subparsers(dest="notify_command", required=True)
+    report = notify_sub.add_parser("report", help="send the run summary + report file (.md) to Discord")
+    report.add_argument("--path", default=None, help="report file (default: reports/weekly/<date>.md, "
+                                                      "else runs/<date>/summary.md)")
+    report.add_argument("--date", default=None, help="run date YYYY-MM-DD (default: latest run)")
+    report.set_defaults(func=_cmd_notify_report)
+    sub.add_parser("notify-test", help="send a test message to Discord").set_defaults(func=_cmd_notify_test)
+    compact = sub.add_parser("compact", help="keep the last N weeks of memory/journal.md, archive older ones")
+    compact.add_argument("--today", default=None, help="YYYY-MM-DD (default: today in New York)")
+    compact.set_defaults(func=_cmd_compact)
+    sentiment = sub.add_parser("record-sentiment", help="validate a news-sentiment JSON and log it (data only)")
+    sentiment.add_argument("--file", required=True, help="path to the sentiment JSON (runs/<date>/sentiment.json)")
+    sentiment.set_defaults(func=_cmd_record_sentiment)
     test_order = sub.add_parser("test-order", help="MANUAL: buy 1 test share with OTO stop, verify, close "
                                                    "(dry-run unless --execute; never in the weekly run)")
     test_order.add_argument("--execute", action="store_true", help="really send the test orders (market open)")

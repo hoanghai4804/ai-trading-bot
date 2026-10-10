@@ -14,16 +14,14 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | done | eacb9c2 |
 | 6b | Mode line, fresh/raw ref price, stop registry, signal window | done | 7f33780 |
 | 6c | Sell at market when the original stop is breached (stop_breached) | done | 9289d31 |
-| 7 | Backtest (walk-forward, costs, 3 benchmarks) | done | (this commit) |
-| 8 | Memory, reports, Discord | todo | |
+| 7 | Backtest (walk-forward, costs, 3 benchmarks) | done | 32d84a7 |
+| 8 | Memory, reports, Discord + A (sentiment log) + B (execution quality, shadow check) | done | (this commit) |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Phase 7 (backtest) committed 2026-10-10. 278 tests pass.
-- **Monday 2026-10-12 after 15:30 Paris (market open)**: run `python -m tradingbot test-order --execute` once
-  (1 SPY share, OTO stop, verify, close) = first real check that Alpaca accepts our OTO request. Then `run`
-  (dry-run) once with the market open: reference prices fresh (< 5 min), raw closes match the last session.
-- Then: **phase 8 — Memory, reports, Discord**.
+- Phase 8 committed 2026-10-10 (364 tests pass). Real `notify-test` received on the user's phone.
+- **Monday 2026-10-12 after 15:30 Paris (market open)**: `test-order --execute` once, then `run` (dry-run) once.
+- Then: **phase 9 — scheduled-run prompt** (`prompts/weekly_run.md`, `should-run`, cloud routine guide).
 - Workflow reminder: tests pass -> stop and summarize in Vietnamese -> wait for approval -> commit -> push.
 
 ## Log
@@ -210,3 +208,45 @@ Plan: [docs/PLAN.md](PLAN.md).
 - Limits (in report.md section 9): survivorship bias of today's watchlist, data only from 2016, adjusted prices,
   Monday open vs ~11:07 live fill, no intraday order, GTC 90-day cancel not simulated, cash earns 0%.
 - 278 tests pass.
+
+### Phase 8 — Memory, reports, Discord (+ A sentiment log, B monitoring)
+- `notify/discord.py`: webhook from DISCORD_WEBHOOK_URL; content cut to 1990 chars, mentions disabled; timeout,
+  `max_retries` (5xx / network: backoff, 429: `retry_after` capped 30 s, other 4xx: no retry); never raises;
+  `logs/notify.log` with the URL redacted (exact URL + any discord webhook pattern). `alert()` = stderr + Discord.
+  CLI: `notify report [--path --date]` (message from summary.json + report .md attached; falls back to
+  runs/<date>/summary.md), `notify-test`. `run --no-notify` keeps alerts on stderr only.
+- Alerts wired: executor + pipeline alerts -> notifier (DRY-RUN tagged); `run` aborted by a SafetyError (HALT.lock
+  found, paper guard) or any exception -> critical alert + an "aborted" summary (exception still re-raised).
+- `reporting/summary.py`: runs/<date>/summary.md (<= 45 lines, line 1 = MODE from run_text; when long, the middle
+  is cut first, the shadow/quality/next lines are always kept and warnings keep at least half the budget),
+  summary.json (account, performance vs SPY, positions AFTER execution with original stops, approved/blocked,
+  orders, execution quality, shadow check, alerts, next_steps incl. report template + sentiment file),
+  decisions.json (full RunResult incl. order_refs). EXECUTE runs rewrite memory/portfolio.md.
+  `scheduling.py`: report mode from `schedule.runs` (unscheduled manual run -> brief).
+- Templates (Vietnamese): `prompts/templates/report_full.md` (8 sections) and `report_brief.md` (4 sections).
+- `memory/`: journal.md (+ `compact`: entries before the Monday of the week 3 weeks back -> journal_archive.md,
+  one summary line kept; idempotent, crash-safe), lessons.md, portfolio.md (Python-written), strategy.md updated.
+- Equity log `state/equity_history.csv` (EXECUTE only, upsert per NY date, benchmark = SPY latest raw trade):
+  performance since last run / since start vs SPY (price return), and extra peak source for the drawdown breaker.
+- A: `sentiment/record.py` + `record-sentiment --file`: strict schema (pydantic strict, extra keys rejected,
+  exact watchlist, score [-1,1], confidence [0,1], one-line reason, no_news => 0/0/no source, n_sources ==
+  distinct http(s) URLs, web_searches <= 4) -> data/sentiment/sentiment_log.csv upsert by (date, symbol) with the
+  raw close of the last session. Test: no trading module mentions "sentiment". Forward returns: later.
+- B1: `monitoring/execution_quality.py`: bot fills since the previous EXECUTE run (orders + legs) vs reference
+  (market: price used by the decision, kept in decisions.json `order_refs`; stop: its stop price) ->
+  state/execution_quality.csv (append, dedupe by order id); summary shows mean market slippage vs 5 bps.
+- B2: `monitoring/shadow.py`: after each run the decision is replayed through `backtest.engine.weekly_decision`
+  (extracted from the engine, which now uses it too) with the same inputs; approved (symbol, side) compared with
+  the live decision taken before execution. Mismatch -> warning in summary + alert. Known legit difference: raw
+  vs adjusted close in the gap check around an ex-date.
+- tests/conftest.py blocks all HTTP in tests: an old CLI test had started to open a real (read-only) Alpaca
+  connection and write the real runs/ after `run` changed; fixed (run goes through `_connect`, test isolated).
+- Mutation check: 32 mutants (Discord 6, sentiment 6, compact 3, equity log 3, shadow 3, quality 4, summary 4,
+  CLI 3). 1 survived at first (archive duplicated after an interrupted compact) -> test added -> 32/32 caught.
+- Real `notify-test` (2026-10-10): message received on the user's phone.
+- Rule added (user, 2026-10-10): NEVER read `.env` in any way (I had used awk/grep/wc on it to diagnose the
+  missing webhook: names and value lengths only, but still a breach). New `env-check` command prints only
+  set/MISSING after loading the environment; rule written in CLAUDE.md hard rules.
+- Incident check after the real-connection test: git status/diff -> state/ empty and untracked (no
+  equity_history / stops / last_run / execution_quality written), memory/ only intended changes, no runs/ left.
+- 364 tests pass.

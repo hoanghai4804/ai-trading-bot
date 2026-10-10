@@ -45,6 +45,15 @@ def get_alpaca_credentials() -> AlpacaCredentials:
     return AlpacaCredentials(api_key=api_key, secret_key=secret_key)
 
 
+REQUIRED_ENV_VARS = ("ALPACA_API_KEY", "ALPACA_SECRET_KEY", "DISCORD_WEBHOOK_URL")
+
+
+def env_presence(names: tuple[str, ...] = REQUIRED_ENV_VARS) -> dict[str, bool]:
+    """Whether each variable is set (non-empty) after loading .env. Never returns a value."""
+    load_env_file()
+    return {name: bool(os.environ.get(name, "").strip()) for name in names}
+
+
 def get_discord_webhook_url() -> str | None:
     load_env_file()
     return os.environ.get("DISCORD_WEBHOOK_URL", "").strip() or None

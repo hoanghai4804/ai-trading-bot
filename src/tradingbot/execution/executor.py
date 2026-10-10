@@ -48,7 +48,7 @@ Alert = Callable[[Level, str], None]
 
 
 def stderr_alert(level: Level, message: str) -> None:
-    """Default alert sink until Discord is wired in (phase 8)."""
+    """Fallback alert sink (stderr). The CLI passes the Discord notifier's alert instead."""
     print(f"ALERT[{level}] {message}", file=sys.stderr)
     log.warning("alert %s: %s", level, message)
 

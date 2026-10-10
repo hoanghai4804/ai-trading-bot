@@ -112,3 +112,17 @@ def test_stale_run_lock_is_taken_over(tmp_path):
     (tmp_path / "run.lock").write_text(json.dumps({"pid": 1, "started_at": old.isoformat()}), encoding="utf-8")
     with RunLock(ttl=timedelta(minutes=30), state_dir=tmp_path):
         pass
+
+
+def test_env_check_prints_presence_never_values(monkeypatch, capsys):
+    import tradingbot.credentials as credentials
+    from tradingbot import cli
+
+    monkeypatch.setattr(credentials, "load_env_file", lambda: None)
+    monkeypatch.setenv("ALPACA_API_KEY", "SECRET-VALUE-1")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "SECRET-VALUE-2")
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "")
+    assert cli.main(["env-check"]) == 1
+    out = capsys.readouterr().out
+    assert out.splitlines() == ["ALPACA_API_KEY: set", "ALPACA_SECRET_KEY: set", "DISCORD_WEBHOOK_URL: MISSING"]
+    assert "SECRET-VALUE" not in out

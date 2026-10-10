@@ -8,6 +8,12 @@ with the market open, from state/last_run.json), clamped to
 [strategy cross_lookback_sessions, schedule.max_signal_window_sessions]. A run that falls
 on a market holiday therefore does not make the next run miss that week's crosses.
 state/last_run.json is only written by EXECUTE runs.
+
+After execution (phase 8): the shadow check replays the decision through the backtest
+path (mismatch -> warning + alert), and bot fills since the previous EXECUTE run are
+compared with their reference price (execution quality). EXECUTE runs also upsert the
+local equity log (an extra peak source for the drawdown breaker) and append new fills
+to state/execution_quality.csv.
 """
 
 from __future__ import annotations
@@ -25,7 +31,11 @@ import pandas as pd
 from tradingbot.config import Config, StrategyConfig
 from tradingbot.data.market_data import LatestTrade, fresh_prices
 from tradingbot.execution.executor import Alert, Broker, ExecutionReport, Executor, stderr_alert
-from tradingbot.execution.orders import StopFill, last_exits, new_positions_this_week, stop_fills_since
+from tradingbot.execution.orders import (StopFill, client_order_id, last_exits, new_positions_this_week,
+                                         stop_fills_since)
+from tradingbot.monitoring.execution_quality import FillRecord, append_fills, collect_fills
+from tradingbot.monitoring.shadow import ShadowResult, order_keys, shadow_check
+from tradingbot.reporting.equity_log import equity_log_series, load_equity_log, performance, upsert_equity
 from tradingbot.risk.circuit_breakers import BreakerStatus, equity_series, evaluate_circuit_breakers, week_start
 from tradingbot.risk.manager import AccountState, RiskDecision, RiskManager
 from tradingbot.safety import STATE_DIR
@@ -66,6 +76,15 @@ class RunResult:
     execution: ExecutionReport
     signal_window: int = 0
     warnings: list[str] = field(default_factory=list)
+    benchmark_symbol: str = ""
+    benchmark_price: float | None = None
+    position_details: list[Any] = field(default_factory=list)    # PositionSnapshot
+    order_refs: dict[str, float] = field(default_factory=dict)    # client_order_id -> reference price
+    shadow: ShadowResult | None = None
+    fills: list[FillRecord] = field(default_factory=list)         # bot fills since the previous EXECUTE run
+    performance: dict[str, Any] = field(default_factory=dict)
+    positions_after: list[Any] = field(default_factory=list)      # PositionSnapshot, re-read after execution
+    cash_after: float | None = None
 
     @property
     def mode(self) -> str:
@@ -82,6 +101,10 @@ class RunResult:
                          "cross_date": s.cross_date.isoformat() if s.cross_date else None} for s in self.signals],
             "decision": self.decision.to_dict(), "execution": self.execution.to_dict(),
             "warnings": list(self.warnings),
+            "benchmark": {"symbol": self.benchmark_symbol, "price": self.benchmark_price},
+            "performance": self.performance, "order_refs": self.order_refs,
+            "shadow_check": self.shadow.to_dict() if self.shadow else None,
+            "fills": [asdict(f) for f in self.fills],
         }
 
 
@@ -97,12 +120,17 @@ def run_weekly(
     alert: Alert = stderr_alert,
     state_dir: Path = STATE_DIR,
     executor_factory: Callable[..., Executor] = Executor,
+    order_refs_history: Mapping[str, float] | None = None,
 ) -> RunResult:
-    """`now` is UTC (order-history window), `today` the New York date of the run."""
+    """`now` is UTC (order-history window), `today` the New York date of the run.
+
+    order_refs_history: client_order_id -> reference price of earlier runs (execution quality).
+    """
     as_of = today - timedelta(days=1)   # last completed day; bars never include today
     account = broker.get_account()
     clock = broker.get_clock()
-    positions = {p.symbol: p.qty for p in broker.get_positions() if p.qty != 0}
+    position_details = [p for p in broker.get_positions() if p.qty != 0]
+    positions = {p.symbol: p.qty for p in position_details}
     warnings = []
     if account.trading_blocked:
         warnings.append("account trading_blocked: no order sent")
@@ -125,10 +153,17 @@ def run_weekly(
 
     buy_symbols = sorted({s.symbol for s in signals if s.action == "buy"})
     wanted = set(buy_symbols) | set(positions)
-    ref_prices, ref_notes = fresh_prices(latest_prices(wanted), wanted, now,
-                                         timedelta(minutes=cfg.data.max_price_age_min))
+    bench = cfg.benchmark_symbol
+    all_fresh, all_notes = fresh_prices(latest_prices(wanted | {bench}), wanted | {bench}, now,
+                                        timedelta(minutes=cfg.data.max_price_age_min))
+    ref_prices = {s: p for s, p in all_fresh.items() if s in wanted}
+    ref_notes = {s: n for s, n in all_notes.items() if s in wanted}
+    bench_price = all_fresh.get(bench)
+    if bench_price is None and bench in bars and not bars[bench].empty:
+        bench_price = float(bars[bench]["close"].iloc[-1])
     raw_closes = dict(load_raw_closes(buy_symbols, as_of)) if buy_symbols else {}
-    breakers = _breakers(cfg, broker, account.equity, today)
+    equity_rows = load_equity_log(state_dir)
+    breakers = _breakers(cfg, broker, account.equity, today, equity_rows)
     acct = AccountState(equity=account.equity, cash=account.cash, positions=positions,
                         new_positions_this_week=week_count)
     decision = RiskManager(cfg.risk, cfg.watchlist).review(signals, as_of, acct, bars, ref_prices, breakers,
@@ -136,14 +171,49 @@ def run_weekly(
     if breakers.halt or breakers.block_new_entries:
         alert("critical" if breakers.halt else "warning", "circuit breaker: " + "; ".join(breakers.reasons))
 
+    planned = order_keys(decision.approved)     # before the executor appends stop_breached sells
+    order_refs = {client_order_id(prefix, today, o.symbol, o.side): (o.ref_price if o.side == "buy"
+                                                                     else ref_prices.get(o.symbol))
+                  for o in decision.approved}
+    order_refs = {k: float(v) for k, v in order_refs.items() if v}
+
     executor = executor_factory(broker, cfg.execution, today, dry_run=dry_run, alert=alert, state_dir=state_dir)
     report = executor.execute(decision, market_open, fresh_prices=ref_prices)
+
+    shadow = shadow_check(cfg, planned, today, bars, positions, exits,
+                          _date_or_none(last_run.get("last_trading_as_of")), account.equity, account.cash,
+                          ref_prices, breakers, week_count)
+    if not shadow.match:
+        warnings.append(f"shadow check {shadow.describe()}")
+        alert("warning", f"shadow check {shadow.describe()}")
+
+    positions_after, cash_after = position_details, account.cash
+    try:
+        positions_after = [p for p in broker.get_positions() if p.qty != 0]
+        cash_after = broker.get_account().cash
+    except Exception as exc:  # noqa: BLE001 - reporting only
+        warnings.append(f"positions not re-read after execution: {type(exc).__name__}: {exc}")
+
+    since = datetime.fromisoformat(last_run["run_at"]) if last_run.get("run_at") else None
+    fills: list[FillRecord] = []
+    try:
+        after = since - timedelta(days=1) if since else now - timedelta(days=ORDER_HISTORY_DAYS)
+        fills = collect_fills(broker.get_orders(status="all", after=after, nested=True), prefix, since,
+                              {**(order_refs_history or {}), **order_refs})
+    except Exception as exc:  # noqa: BLE001 - monitoring must not break the run
+        warnings.append(f"execution quality not collected: {type(exc).__name__}: {exc}")
+
     result = RunResult(today=today, as_of=as_of, dry_run=dry_run, market_open=market_open, equity=account.equity,
                        cash=account.cash, positions=positions, new_positions_this_week=week_count,
                        stop_fills=stop_fills, signals=signals, decision=decision, execution=report,
-                       signal_window=window, warnings=warnings)
+                       signal_window=window, warnings=warnings, benchmark_symbol=bench,
+                       benchmark_price=bench_price, position_details=position_details, order_refs=order_refs,
+                       shadow=shadow, fills=fills, positions_after=positions_after, cash_after=cash_after,
+                       performance=performance(equity_rows, today, account.equity, bench_price))
     if not dry_run:
         save_last_run(result, now, last_run, state_dir)
+        upsert_equity(today, account.equity, account.cash, bench, bench_price, state_dir)
+        append_fills(fills, state_dir)
     return result
 
 
@@ -193,7 +263,9 @@ def save_last_run(result: RunResult, now: datetime, previous: Mapping[str, Any],
     return path
 
 
-def _breakers(cfg: Config, broker: WeeklyBroker, equity: float, today: date) -> BreakerStatus:
-    # The local equity log (extra peak source) is added in phase 8.
+def _breakers(cfg: Config, broker: WeeklyBroker, equity: float, today: date,
+              equity_rows: list[dict[str, str]]) -> BreakerStatus:
+    """Peak = max of Alpaca's daily portfolio history and the local equity log."""
     history = equity_series(broker.get_daily_equity_history())
-    return evaluate_circuit_breakers(equity, today, cfg.risk.circuit_breakers, history)
+    return evaluate_circuit_breakers(equity, today, cfg.risk.circuit_breakers, history,
+                                     extra_histories=[equity_log_series(equity_rows)])
