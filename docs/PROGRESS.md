@@ -10,14 +10,14 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 2 | Alpaca connection + paper guard | done | e7f7550 |
 | 3 | Data & indicators | done | 4dd1754 |
 | 4 | Strategy (MA crossover) | done | f16bc77 |
-| 5 | Risk manager + circuit breakers | done (awaiting commit) | |
+| 5 | Risk manager + circuit breakers | done | 2c02a78 |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | todo | |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Phase 5 implemented 2026-10-10, tests pass; waiting for user approval → commit → push.
+- Last session ended 2026-10-10 after phase 5 was committed and pushed.
 - Then: **phase 6 — Execution** (docs/PLAN.md §Các giai đoạn, item 6). Phase 6 must supply to `RiskManager.review`:
   latest-trade ref prices, `new_positions_this_week` from Alpaca order history (client_order_id prefix, NY calendar
   week), bars for watchlist ∪ held symbols, and `last_exit` for the strategy. On `decision.halt`: write HALT.lock
