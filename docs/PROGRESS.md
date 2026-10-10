@@ -11,13 +11,13 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 3 | Data & indicators | done | 4dd1754 |
 | 4 | Strategy (MA crossover) | done | f16bc77 |
 | 5 | Risk manager + circuit breakers | done | 2c02a78 |
-| 6 | Execution (dry-run, OTO, safe sell, idempotency) | done, awaiting approval | |
+| 6 | Execution (dry-run, OTO, safe sell, idempotency) | done | eacb9c2 |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Session 2026-10-10 (Saturday): extra risk tests + phase 6 written, tests pass, NOT committed yet (waiting for approval).
+- Session 2026-10-10 (Saturday): extra risk tests (2203f5b) + phase 6 (eacb9c2) committed and pushed. Next: phase 6b.
 - **Monday 2026-10-12 after 15:30 Paris (market open)**: run `python -m tradingbot test-order --execute` once
   (1 SPY share, OTO stop, verify, close). It is the first real check that Alpaca accepts our OTO request
   (market + GTC + stop_loss). Then `run` (dry-run) once with the market open.
