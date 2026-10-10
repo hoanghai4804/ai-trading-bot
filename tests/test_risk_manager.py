@@ -239,3 +239,60 @@ def test_no_lookahead_future_bars_do_not_change_decision():
     full_d = review(signals, bars=BARS, ref=ref, as_of=as_of)
     past_d = review(signals, bars=past, ref=ref, as_of=as_of)
     assert full_d == past_d and full_d.approved
+
+
+# --- extra cases for rules guarded by a single test (risk 1%, halt blocks buys, halt liquidates) ---
+
+@pytest.mark.parametrize("equity", [37_000.0, 250_000.0])
+def test_risk_bound_qty_is_exactly_one_percent_of_equity_over_stop_distance(equity):
+    bars = {**BARS, "AAA": _frame(BASE["AAA"], spread=0.08)}
+    [o] = review([buy("AAA")], acct=account(equity=equity, cash=equity), bars=bars).approved
+    per_share = REF["AAA"] - compute_stop(REF["AAA"], atr(bars["AAA"], 14).iloc[-1], 2.0)
+    assert o.limited_by == "risk"
+    assert o.qty == int(0.01 * equity // per_share)                # largest qty within 1% ...
+    assert o.risk_amount <= 0.01 * equity + 1e-6 < (o.qty + 1) * per_share  # ... one more share breaks it
+
+
+def test_risk_budget_is_one_percent_of_equity_per_trade_not_of_remaining_cash():
+    bars = {**BARS, **{s: _frame(BASE[s], spread=0.08) for s in ("AAA", "BBB")}}
+    d = review([buy("AAA"), buy("BBB")], bars=bars)
+    assert [o.limited_by for o in d.approved] == ["risk", "risk"]
+    for o in d.approved:
+        per_share = o.ref_price - o.stop_price
+        assert o.risk_amount <= 1_000 + 1e-6 < o.risk_amount + per_share
+
+
+def test_halt_blocks_every_buy_with_drawdown_code_before_any_other_check():
+    # Without the halt these would be: approved, not_in_watchlist, already_held, gap_too_large.
+    ref = {**REF, "DDD": REF["DDD"] * 1.2}
+    d = review([buy("AAA"), buy("ZZZ"), buy("BBB"), buy("DDD")], acct=account({"BBB": 4}), ref=ref,
+               breakers=HALT)
+    assert [o.side for o in d.approved] == ["sell"]
+    assert [(b.symbol, b.code) for b in d.blocked] == [
+        ("AAA", "drawdown_halt"), ("ZZZ", "drawdown_halt"), ("BBB", "drawdown_halt"), ("DDD", "drawdown_halt")]
+    assert all("drawdown" in b.detail for b in d.blocked)
+
+
+def test_halt_blocks_buys_even_if_status_does_not_flag_new_entries():
+    # The halt flag alone must be enough; block_new_entries is not relied upon.
+    halt_only = BreakerStatus(halt=True, block_new_entries=False, reasons=("drawdown 12% >= 10%",),
+                              previous_week_return=None, drawdown=0.12, peak_equity=100_000, current_equity=88_000)
+    d = review([buy("AAA")], breakers=halt_only)
+    assert d.approved == [] and codes(d) == {"AAA": "drawdown_halt"}
+
+
+def test_halt_liquidates_all_positions_without_any_exit_signal():
+    acct = account({"AAA": 3.5, "CCC": 1, "DDD": 20, "XYZ": 2})  # XYZ not even in the watchlist
+    d = review([], acct=acct, breakers=HALT)
+    assert [(o.symbol, o.side, o.qty) for o in d.approved] == [
+        ("AAA", "sell", 3.5), ("CCC", "sell", 1), ("DDD", "sell", 20), ("XYZ", "sell", 2)]
+    assert all(o.reason == "drawdown breaker: liquidate" for o in d.approved)
+    assert d.blocked == []
+
+
+def test_halt_liquidation_keeps_strategy_reason_and_sells_each_symbol_once():
+    d = review([exit_("CCC"), exit_("CCC"), exit_("AAA")], acct=account({"CCC": 5, "BBB": 2, "DDD": 0}),
+               breakers=HALT)
+    assert [(o.symbol, o.qty, o.reason) for o in d.approved] == [
+        ("BBB", 2, "drawdown breaker: liquidate"), ("CCC", 5, "MA20 < MA50")]
+    assert codes(d) == {"CCC": "duplicate", "AAA": "not_held"}   # DDD qty 0 -> nothing to sell
