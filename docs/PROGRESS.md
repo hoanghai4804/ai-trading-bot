@@ -16,12 +16,22 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 6c | Sell at market when the original stop is breached (stop_breached) | done | 9289d31 |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | done | 32d84a7 |
 | 8 | Memory, reports, Discord + A (sentiment log) + B (execution quality, shadow check) | done | (this commit) |
-| 9 | Scheduled-run prompt + cloud routine guide | todo | |
+| 9 | Scheduled-run prompt + cloud routine guide + README | done | (this commit) |
 
 ## Next step (resume here)
-- Phase 8 committed 2026-10-10 (364 tests pass). Real `notify-test` received on the user's phone.
-- **Monday 2026-10-12 after 15:30 Paris (market open)**: `test-order --execute` once, then `run` (dry-run) once.
-- Then: **phase 9 — scheduled-run prompt** (`prompts/weekly_run.md`, `should-run`, cloud routine guide).
+- Phase 9 committed 2026-10-10 (393 tests pass). `test-order --execute` has NOT run yet (market closed).
+- Remaining steps, in order:
+  1. **Monday 2026-10-12 after 15:30 Paris (market open)**: `test-order --execute` once on the local machine
+     (expect `RESULT PASS`), then `run` (dry-run) once. Record the result here.
+  2. Cloud setup per `docs/ROUTINE_SETUP.md`: GitHub App on the repo, environment `tradingbot` (Custom network,
+     Alpaca network secret + placeholder env vars, DISCORD_WEBHOOK_URL, BASH_DEFAULT_TIMEOUT_MS, setup script),
+     routine (Sonnet, Monday 15:07 UTC, no connectors). TRADINGBOT_MODE NOT set.
+  3. Run now with `force-dry-run-full`: check transcript (`account=PA...`, no 403, no secret read), the
+     commit on GitHub, the Discord message. If the network secret fails (401/403): fallback env vars.
+     First real check of `cloud_setup.sh` on Linux.
+  4. Scheduled cloud DRY-RUNs for at least 1-2 weeks without error.
+  5. Only if step 1 passed AND step 4 is clean: set `TRADINGBOT_MODE=execute`.
+  6. Then: strategy research (MA20/50 has no edge vs the random benchmark).
 - Workflow reminder: tests pass -> stop and summarize in Vietnamese -> wait for approval -> commit -> push.
 
 ## Log
@@ -250,3 +260,33 @@ Plan: [docs/PLAN.md](PLAN.md).
 - Incident check after the real-connection test: git status/diff -> state/ empty and untracked (no
   equity_history / stops / last_run / execution_quality written), memory/ only intended changes, no runs/ left.
 - 364 tests pass.
+
+### Phase 9 — Scheduled-run prompt, cloud routine guide, README
+- `scheduling.decide_run` + CLI `should-run [--force [brief|full]] [--today]`: first line
+  `SHOULD-RUN: RUN|SKIP|HALT mode=... report=... date=...`, then `reason:`, `command:` (the exact `run`
+  command, `--execute` only when `TRADINGBOT_MODE` is exactly `execute`, case-insensitive), `WARNING:` lines
+  (mode not set / other value -> DRY-RUN). Exit 0/3/4. HALT wins over everything and sends a critical alert +
+  writes an aborted summary; a completed EXECUTE run today -> SKIP; unscheduled day -> SKIP unless `--force`
+  in DRY-RUN (refused in EXECUTE). CLI `notify alert --level --message` for the prompt's abnormal cases.
+- `scripts/cloud_setup.sh`: idempotent .venv (Python 3.11 via uv on the cloud, py launcher locally),
+  reinstalls when requirements change; last line `PYTHON=<path>`.
+- `prompts/weekly_run.md`: hard rules (no secret/.env, write only memory/ reports/ runs/ state/
+  data/sentiment/, only the command printed by should-run, alert + stop on anything abnormal), steps 0-9,
+  payload `force-dry-run` / `force-dry-run-full` for Run now, `TRADINGBOT_REHEARSAL=1` = no pull/commit/push,
+  commit + push to main always (allowed paths only, .env check, rebase once on rejection).
+- Rehearsal 2026-10-10 (fresh headless `claude -p --model sonnet`, REHEARSAL, forced full, DRY-RUN, market
+  closed): all steps OK; report + journal + 11 sentiment rows + Discord message. 20 turns, 61 s, ~422k input
+  tokens (mostly cache reads), 5.6k output, ~0.25 USD at API prices. Fixed in the prompt afterwards: the
+  session read docs/PROGRESS.md (CLAUDE.md startup rule) and quoted it in the report, read source code,
+  wrote a temp script in /tmp -> explicit rules added. Known: a forced full run's summary.md still says
+  `report: brief` (the prompt follows should-run).
+- `docs/ROUTINE_SETUP.md` (checked against the docs on 2026-10-10): GitHub App, environment (Custom network:
+  Alpaca paper + data + discord.com, no live host), Alpaca keys as a network secret with placeholder env
+  vars (UNVERIFIED: two custom headers + header override -> mandatory check, fallback env vars), Discord
+  webhook as env var (token in the URL path: a network secret cannot carry it), setup script, routine,
+  gradual rollout, pause / HALT / usage.
+- `README.md` for the CV (English). Rehearsal report kept as `docs/examples/weekly_report_example.md`;
+  the rehearsal's runs/ folder, journal entry and the 11 sentiment rows were deleted (not real data).
+- Correction (user, 2026-10-10): `test-order --execute` has NOT run yet; it is a precondition for EXECUTE.
+- Open: Linux path of `cloud_setup.sh` and the network-secret behaviour are only testable with the first
+  cloud Run now.

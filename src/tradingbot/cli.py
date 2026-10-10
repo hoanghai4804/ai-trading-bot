@@ -157,6 +157,37 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_should_run(args: argparse.Namespace) -> int:
+    """RUN / SKIP / HALT for today + the exact `run` command (mode from TRADINGBOT_MODE).
+
+    Exit 0 = RUN, 3 = SKIP, 4 = HALT. On HALT: critical alert + an "aborted" summary for today, so the
+    weekly prompt only has to write the brief report, notify and commit.
+    """
+    import os
+
+    from tradingbot.reporting.summary import load_summary, write_abort_summary
+    from tradingbot.scheduling import MODE_ENV_VAR, decide_run
+
+    cfg = load_config(args.config)
+    today = date.fromisoformat(args.today) if args.today else today_new_york()
+    halt = read_halt()
+    decision = decide_run(cfg, today, os.environ.get(MODE_ENV_VAR), halt, load_summary(today), force=args.force)
+    print("\n".join(decision.lines()))
+    if decision.action == "HALT":
+        notifier = _notifier(cfg, args, tag="[DRY-RUN] " if decision.dry_run else "")
+        notifier.alert("critical", f"weekly run not started: {decision.reason}")
+        out = write_abort_summary(today, decision.dry_run, f"HALTED: {decision.reason}", cfg)
+        print(f"outputs: {out}")
+    return decision.exit_code
+
+
+def _cmd_notify_alert(args: argparse.Namespace) -> int:
+    """One alert (stderr + Discord) for situations the weekly prompt cannot handle itself."""
+    cfg = load_config(args.config)
+    _notifier(cfg, args).alert(args.level, args.message[:1500])
+    return 0
+
+
 def _cmd_notify_report(args: argparse.Namespace) -> int:
     """Send the run summary (< 2000 chars) + the report file to Discord. Never raises."""
     from tradingbot.config import PROJECT_ROOT
@@ -276,6 +307,12 @@ def build_parser() -> argparse.ArgumentParser:
     signals.add_argument("--as-of", default=None, help="YYYY-MM-DD, must be before today (default: yesterday)")
     signals.add_argument("--held", default="", help="comma-separated symbols to treat as held (exit checks)")
     signals.set_defaults(func=_cmd_signals)
+    should_run = sub.add_parser("should-run", help="RUN / SKIP / HALT for today + the exact run command "
+                                                   "(mode from TRADINGBOT_MODE; exit 0 / 3 / 4)")
+    should_run.add_argument("--force", nargs="?", const="brief", choices=("brief", "full"), default=None,
+                            help="run on an unscheduled day with this report (default brief; DRY-RUN only)")
+    should_run.add_argument("--today", default=None, help="YYYY-MM-DD (default: today in New York)")
+    should_run.set_defaults(func=_cmd_should_run)
     run = sub.add_parser("run", help="weekly run: signals -> risk -> orders (dry-run unless --execute)")
     run.add_argument("--execute", action="store_true", help="send approved orders to the PAPER account")
     run.add_argument("--no-notify", action="store_true", help="alerts to stderr only (no Discord)")
@@ -287,6 +324,10 @@ def build_parser() -> argparse.ArgumentParser:
                                                       "else runs/<date>/summary.md)")
     report.add_argument("--date", default=None, help="run date YYYY-MM-DD (default: latest run)")
     report.set_defaults(func=_cmd_notify_report)
+    alert = notify_sub.add_parser("alert", help="send one alert (stderr + Discord)")
+    alert.add_argument("--level", choices=("info", "warning", "critical"), default="warning")
+    alert.add_argument("--message", required=True)
+    alert.set_defaults(func=_cmd_notify_alert)
     sub.add_parser("notify-test", help="send a test message to Discord").set_defaults(func=_cmd_notify_test)
     compact = sub.add_parser("compact", help="keep the last N weeks of memory/journal.md, archive older ones")
     compact.add_argument("--today", default=None, help="YYYY-MM-DD (default: today in New York)")

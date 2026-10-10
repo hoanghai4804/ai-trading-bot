@@ -46,11 +46,14 @@ py -3.11 -m venv .venv
 .venv/Scripts/python -m tradingbot check       # paper account + market status (exit 2 = safety abort)
 .venv/Scripts/python -m tradingbot data        # watchlist indicators up to yesterday (--as-of YYYY-MM-DD)
 .venv/Scripts/python -m tradingbot signals     # strategy proposals only, no risk/orders (--as-of, --held)
+.venv/Scripts/python -m tradingbot should-run  # RUN/SKIP/HALT + exact run command (TRADINGBOT_MODE; exit 0/3/4)
 .venv/Scripts/python -m tradingbot run         # weekly run, DRY-RUN unless --execute (paper orders)
 .venv/Scripts/python -m tradingbot test-order  # MANUAL only (never in the weekly run): 1 SPY + OTO stop, verify, close; --execute
 .venv/Scripts/python -m tradingbot backtest    # reports/backtest/ (walk-forward, 3 benchmarks)
 .venv/Scripts/python -m tradingbot notify report [--path reports/weekly/<date>.md]   # summary + attachment
 .venv/Scripts/python -m tradingbot notify-test # one test message to Discord
+.venv/Scripts/python -m tradingbot notify alert --level critical --message "..."   # weekly prompt only
+bash scripts/cloud_setup.sh                    # idempotent venv setup (cloud routine); last line PYTHON=<path>
 .venv/Scripts/python -m tradingbot record-sentiment --file runs/<date>/sentiment.json   # data only
 .venv/Scripts/python -m tradingbot compact     # journal: keep 4 weeks
 ```
@@ -75,6 +78,8 @@ py -3.11 -m venv .venv
   previous-week return does not.
 - Weekly limits use calendar weeks (New York) from Alpaca order history, not run counts.
 - Runs: cloud cron Monday 15:07 UTC only; `schedule.runs` in config is the guard/extension point.
+  Routine setup: `docs/ROUTINE_SETUP.md`. Mode: only `TRADINGBOT_MODE=execute` trades (else DRY-RUN +
+  warning); `should-run --force [full]` (unscheduled day) is DRY-RUN only; `TRADINGBOT_REHEARSAL=1` = no git writes.
 - Drawdown breaker only checked at run time; between runs only GTC stops protect positions.
   Peak = max(Alpaca daily portfolio history, local `state/equity_history.csv`).
 - Discord (`notify/discord.py`): never raises, never logs the webhook URL (`logs/notify.log`), messages < 2000 chars.
