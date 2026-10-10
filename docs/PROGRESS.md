@@ -9,7 +9,7 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 1 | Project skeleton, strict config, tests | done | 7c524f7 |
 | 2 | Alpaca connection + paper guard | done | e7f7550 |
 | 3 | Data & indicators | done | 4dd1754 |
-| 4 | Strategy (MA crossover) | todo | |
+| 4 | Strategy (MA crossover) | done (awaiting commit) | |
 | 5 | Risk manager + circuit breakers | todo | |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | todo | |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
@@ -17,11 +17,8 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Last session ended 2026-10-09 after phase 3 was committed and pushed.
-- Next: **phase 4 — Strategy** (see docs/PLAN.md §Các giai đoạn, item 4):
-  `strategies/base.py` (Strategy ABC + Signal), `strategies/ma_crossover.py`, `strategies/registry.py`;
-  buy = MA20 crossed above MA50 within `cross_lookback_sessions` and still above; exit = MA20 < MA50 while held;
-  no re-entry on a symbol closed after the cross date. Tests: up/down cross, cross too old, already held, no-lookahead.
+- Phase 4 implemented 2026-10-10, tests pass; waiting for user approval → commit → push.
+- Then: **phase 5 — Risk manager + circuit breakers** (docs/PLAN.md §Các giai đoạn, item 5).
 - Workflow reminder: tests pass → stop and summarize in Vietnamese → wait for approval → commit → push.
 
 ## Log
@@ -53,3 +50,16 @@ Plan: [docs/PLAN.md](PLAN.md).
   (NaN when overlap < lookback → callers must treat as unknown).
 - CLI `data [--as-of]` checked on real data (as of 2026-10-08: highest 60-day corr AMZN/GOOGL 0.69 < 0.8).
 - 56 tests pass.
+
+### Phase 4 — Strategy
+- `strategies/base.py`: `Signal` dataclass + `Strategy.generate_signals(bars, as_of, positions, last_exit)`;
+  output order = exits (alphabetical), then buys by most recent cross, ties alphabetical.
+- `strategies/ma_crossover.py`: strict params (fast < slow, lookback >= 1). Cross at t = fast[t] > slow[t] and
+  fast[t-1] <= slow[t-1]; buy if cross is 0..lookback-1 sessions before as_of, still above, not held, and no
+  bot exit after the cross date. Exit if held and fast < slow. Data cut at as_of inside the strategy.
+- `strategies/registry.py`: config name → class; `config` command now validates strategy params.
+- CLI `signals [--as-of] [--held SYM,...]` (no risk checks, no orders). Weekly scan over the last year on real
+  data looks sane (0–4 buy signals per week).
+- Note: in a 4-session holiday week a cross from the previous Friday is still inside the 5-session window,
+  so it can be proposed twice (risk manager / held check handle it).
+- 74 tests pass.

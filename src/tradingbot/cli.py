@@ -18,10 +18,12 @@ from tradingbot.credentials import MissingCredentialsError, get_alpaca_credentia
 from tradingbot.data.market_data import MarketData, default_alpaca_source
 from tradingbot.indicators.technical import atr, return_correlation, sma
 from tradingbot.safety import SafetyError, read_halt
+from tradingbot.strategies.registry import build_strategy
 
 
 def _cmd_config(args: argparse.Namespace) -> int:
     cfg = load_config(args.config)
+    build_strategy(cfg.strategy)  # validates strategy name + params
     print(f"mode={cfg.mode} strategy={cfg.strategy.name} watchlist={','.join(cfg.watchlist)}")
     print("schedule=" + ", ".join(f"{r.weekday}:{r.report}" for r in cfg.schedule.runs))
     return 0
@@ -70,6 +72,22 @@ def _cmd_data(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_signals(args: argparse.Namespace) -> int:
+    """Print strategy proposals up to as_of (no risk checks, no orders)."""
+    cfg = load_config(args.config)
+    strategy = build_strategy(cfg.strategy)
+    as_of = date.fromisoformat(args.as_of) if args.as_of else None
+    md = MarketData(source=default_alpaca_source(), config=cfg.data)
+    as_of = as_of or md.today() - timedelta(days=1)
+    bars = md.get_bars(cfg.watchlist, start=as_of - timedelta(days=cfg.data.history_days), as_of=as_of)
+    held = [s.strip().upper() for s in args.held.split(",") if s.strip()] if args.held else []
+    signals = strategy.generate_signals(bars, as_of, positions=held)
+    print(f"strategy={strategy.name} as_of={as_of} held={','.join(held) or '-'} signals={len(signals)}")
+    for s in signals:
+        print(f"{s.action:4} {s.symbol:6} close={s.close:.2f} fast={s.fast_ma:.2f} slow={s.slow_ma:.2f} | {s.reason}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tradingbot")
     parser.add_argument("--config", default=None, help="path to config.yaml (default: config/config.yaml)")
@@ -83,6 +101,10 @@ def build_parser() -> argparse.ArgumentParser:
     data = sub.add_parser("data", help="fetch watchlist bars and print indicators up to as_of")
     data.add_argument("--as-of", default=None, help="YYYY-MM-DD, must be before today (default: yesterday)")
     data.set_defaults(func=_cmd_data)
+    signals = sub.add_parser("signals", help="print strategy signals up to as_of (no risk checks, no orders)")
+    signals.add_argument("--as-of", default=None, help="YYYY-MM-DD, must be before today (default: yesterday)")
+    signals.add_argument("--held", default="", help="comma-separated symbols to treat as held (exit checks)")
+    signals.set_defaults(func=_cmd_signals)
     return parser
 
 
