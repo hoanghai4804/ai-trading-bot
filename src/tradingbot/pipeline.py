@@ -137,7 +137,7 @@ def run_weekly(
         alert("critical" if breakers.halt else "warning", "circuit breaker: " + "; ".join(breakers.reasons))
 
     executor = executor_factory(broker, cfg.execution, today, dry_run=dry_run, alert=alert, state_dir=state_dir)
-    report = executor.execute(decision, market_open)
+    report = executor.execute(decision, market_open, fresh_prices=ref_prices)
     result = RunResult(today=today, as_of=as_of, dry_run=dry_run, market_open=market_open, equity=account.equity,
                        cash=account.cash, positions=positions, new_positions_this_week=week_count,
                        stop_fills=stop_fills, signals=signals, decision=decision, execution=report,

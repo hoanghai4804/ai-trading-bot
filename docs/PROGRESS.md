@@ -12,14 +12,15 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 4 | Strategy (MA crossover) | done | f16bc77 |
 | 5 | Risk manager + circuit breakers | done | 2c02a78 |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | done | eacb9c2 |
-| 6b | Mode line, fresh/raw ref price, stop registry, signal window | done | (this commit) |
+| 6b | Mode line, fresh/raw ref price, stop registry, signal window | done | 7f33780 |
+| 6c | Sell at market when the original stop is breached (stop_breached) | done | (this commit) |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Session 2026-10-10 (Saturday): extra risk tests (2203f5b) + phase 6 (eacb9c2) pushed; phase 6b written,
-  tests pass, NOT committed yet (waiting for approval).
+- Session 2026-10-10 (Saturday) ended after phases 6, 6b (7f33780) and 6c (stop_breached) were committed and
+  pushed. 232 tests pass. Next session starts with phase 7 (user will /clear first).
 - **Monday 2026-10-12 after 15:30 Paris (market open)**: run `python -m tradingbot test-order --execute` once
   (1 SPY share, OTO stop, verify, close). It is the first real check that Alpaca accepts our OTO request
   (market + GTC + stop_loss). Then `run` (dry-run) once with the market open: reference prices must be
@@ -158,4 +159,18 @@ Plan: [docs/PLAN.md](PLAN.md).
 - Real dry-run 2026-10-10 (market closed): mode line OK; SPY latest trade 836 min old flagged; raw and adjusted
   closes of 10-09 identical (no corporate action since).
 - Open: if the price is already below the original stop, re-placing the stop will be rejected by Alpaca ->
-  critical alert only (no automatic market sell).
+  critical alert only (no automatic market sell). -> resolved in 6c.
+
+### Phase 6c — stop_breached (user decision 2026-10-10)
+- In stop reconciliation: held position with NO open stop and a FRESH reference price (passed
+  `data.max_price_age_min`) at or below its original stop -> sell at market through the existing safe-sell
+  flow; an `ApprovedOrder` with reason `stop_breached: ...` is appended to the decision, plus an alert
+  (warning if filled, critical if the sell failed; a failed sell tries to restore the original stop).
+- Only with `--execute` and the market open. Dry-run / market closed -> nothing sent, critical alert.
+  Stale or missing price -> no sell; the original stop is re-placed as usual (a rejection = critical alert).
+  A position whose stop is still open is left to that stop.
+- Fix found by the new tests: the stop registry pruned closed positions using the position list read BEFORE
+  the stop_breached sells -> now re-read after them.
+- Mutation check: 9 mutants (check off, `<` vs `<=`, stale prices reaching the executor, dry-run / closed
+  market guards, bypassing safe sell, reason not recorded, alert level, stale pruning) -> all caught.
+- 232 tests pass.

@@ -10,6 +10,10 @@ Order of work:
  5. Stop reconciliation (state/stops.json holds each position's ORIGINAL stop): a held position
     without an open stop gets exactly its original stop back (+ alert); a position with no
     recorded stop is a critical alert. Stops are never moved. Closed positions leave the file.
+    stop_breached: if a FRESH reference price is already at/below the original stop (the stop
+    would have fired, and Alpaca would reject it), the position is sold through the safe-sell
+    flow instead - only in EXECUTE with the market open; otherwise a critical alert. Without a
+    fresh price nothing is sold; the stop is re-placed as usual (a rejection is a critical alert).
 
 Idempotency: client_order_id is deterministic (`<prefix>-<date>-<SYMBOL>-<buy|sell>`), and
 before sending anything the executor checks for an existing order with that id, an open
@@ -23,7 +27,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -116,11 +120,17 @@ class Executor:
         self._now = now
         self.report = ExecutionReport(dry_run=dry_run, market_open=False)
         self.stops: dict[str, StopEntry] = {}
+        self._decision: RiskDecision | None = None
+        self._fresh: dict[str, float] = {}
 
     # --- public --------------------------------------------------------------------
 
-    def execute(self, decision: RiskDecision, market_open: bool) -> ExecutionReport:
+    def execute(self, decision: RiskDecision, market_open: bool,
+                fresh_prices: Mapping[str, float] | None = None) -> ExecutionReport:
+        """fresh_prices: latest trades that passed the max-age check (stale ones must be left out)."""
         self.report = ExecutionReport(dry_run=self.dry_run, market_open=market_open)
+        self._decision = decision
+        self._fresh = dict(fresh_prices or {})
         self.stops = load_stops(self.state_dir)
         sells = [o for o in decision.approved if o.side == "sell"]
         buys = [o for o in decision.approved if o.side == "buy"]
@@ -306,12 +316,33 @@ class Executor:
                 self._alert("critical", f"{symbol}: {qty:g} shares held without an open stop and no original "
                                         "stop recorded; UNPROTECTED")
                 continue
-            self._replace_stop(symbol, qty, entry, can_send)
+            price = self._fresh.get(symbol)
+            if price is not None and price <= entry.stop_price:
+                self._sell_breached(symbol, qty, entry, price, can_send)
+            else:
+                self._replace_stop(symbol, qty, entry, can_send)
         pending_buys = {o.symbol for o in open_orders if o.side == "buy"}
-        for symbol in sorted(set(self.stops) - set(held) - pending_buys):
+        held_now = {p.symbol for p in self.broker.get_positions() if p.qty > 0}   # after stop_breached sells
+        for symbol in sorted(set(self.stops) - held_now - pending_buys):
             del self.stops[symbol]   # position closed (sold or stopped out)
         if not self.dry_run:
             save_stops(self.stops, self.state_dir)
+
+    def _sell_breached(self, symbol: str, qty: float, entry: StopEntry, price: float, can_send: bool) -> None:
+        why = (f"stop_breached: fresh price {price:.2f} <= original stop {entry.stop_price:.2f} "
+               f"(set {entry.entry_date}) and no open stop")
+        if self.dry_run or not can_send:
+            status = "dry_run" if self.dry_run else "skipped"
+            self._add(OrderResult(symbol, "sell", status, f"{why}: would sell at market", qty=qty,
+                                  stop_price=entry.stop_price))
+            self._alert("critical", f"{symbol}: {why}; NOT sold in this run "
+                                    f"({'dry-run' if self.dry_run else 'market closed'})")
+            return
+        self._decision.approved.append(ApprovedOrder(symbol=symbol, side="sell", qty=qty, reason=why,
+                                                     ref_price=price, stop_price=entry.stop_price))
+        result = self.safe_sell(symbol, self._cid(symbol, "sell"))
+        level: Level = "warning" if result.status == "filled" else "critical"
+        self._alert(level, f"{symbol}: {why}; market sell {result.status} {result.detail}".rstrip())
 
     def _replace_stop(self, symbol: str, qty: float, entry: StopEntry, can_send: bool) -> None:
         why = f"no open stop; original stop {entry.stop_price:.2f} (set {entry.entry_date})"

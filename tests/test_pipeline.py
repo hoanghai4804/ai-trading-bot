@@ -239,3 +239,21 @@ def test_gap_is_checked_against_the_raw_close(tmp_path):
                         executor_factory=partial(Executor, sleep=fb.sleep, monotonic=fb.monotonic))
     assert {b.symbol: b.code for b in result.decision.blocked} == {"AAPL": "gap_too_large"}
     assert fb.calls == []
+
+
+@pytest.mark.parametrize("age,sold", [(pd.Timedelta(minutes=1), True), (pd.Timedelta(minutes=10), False)])
+def test_breached_original_stop_needs_a_fresh_price(tmp_path, age, sold):
+    from tradingbot.execution.stop_registry import StopEntry, save_stops
+
+    # AAPL held (MA20 > MA50: no exit signal); original stop far above its ~102 price.
+    save_stops({"AAPL": StopEntry(500.0, date(2026, 6, 1), "tb-2026-06-01-AAPL-buy")}, tmp_path)
+    fb = FakeBroker(positions={"AAPL": 3})
+
+    def priced(symbols):
+        return {s: _LT(float(BARS[s]["close"].iloc[-1]), NOW - age) for s in symbols}
+
+    result = run_weekly(CFG, fb, load_bars, priced, raw_closes, now=NOW, today=TODAY, dry_run=False,
+                        alert=lambda *a: None, state_dir=tmp_path,
+                        executor_factory=partial(Executor, sleep=fb.sleep, monotonic=fb.monotonic))
+    assert ("sell" in fb.writes) is sold
+    assert any(o.reason.startswith("stop_breached") for o in result.decision.approved) is sold

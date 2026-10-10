@@ -51,7 +51,9 @@ py -3.11 -m venv .venv
   (5) → no_reference_price. Stop = ref − 2×ATR(14), fixed. Skip if |ref/last RAW (unadjusted) close − 1| > 3%
   or stop ≥ ref.
 - Original stop of each position lives in `state/stops.json`; a held position without an open stop gets
-  exactly that stop back (+ alert). Stops are NEVER moved.
+  exactly that stop back (+ alert). Stops are NEVER moved. If a FRESH price is already at/below the original
+  stop (no open stop), the position is sold via safe sell, reason `stop_breached` (EXECUTE + market open only;
+  otherwise / stale price → critical alert, no sale).
 - Buy-signal window = sessions since `last_trading_as_of` in `state/last_run.json` (last EXECUTE run with the
   market open), clamped to [5, `schedule.max_signal_window_sessions`=15]; catches crosses after a holiday run.
 - `run` / `test-order` are DRY-RUN unless `--execute`; the first output line always states the mode.

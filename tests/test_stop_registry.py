@@ -17,11 +17,12 @@ OK = BreakerStatus(halt=False, block_new_entries=False, reasons=(), previous_wee
 MSFT = StopEntry(stop_price=90.37, entry_date=date(2026, 6, 1), buy_order_id="tb-2026-06-01-MSFT-buy")
 
 
-def run(fb, state_dir, *orders, dry_run=False, market_open=True, alerts=None):
+def run(fb, state_dir, *orders, dry_run=False, market_open=True, alerts=None, fresh=None, decision=None):
     sink = (lambda level, msg: alerts.append((level, msg))) if alerts is not None else (lambda *a: None)
     ex = Executor(fb, CFG, TODAY, dry_run=dry_run, alert=sink, state_dir=state_dir, sleep=fb.sleep,
                   monotonic=fb.monotonic)
-    return ex.execute(RiskDecision(as_of=date(2026, 10, 9), breakers=OK, approved=list(orders)), market_open)
+    decision = decision or RiskDecision(as_of=date(2026, 10, 9), breakers=OK, approved=list(orders))
+    return ex.execute(decision, market_open, fresh_prices=fresh)
 
 
 def test_save_and_load_roundtrip_and_corrupt_file_fails(tmp_path):
@@ -108,3 +109,65 @@ def test_dry_run_never_touches_the_registry_file(tmp_path):
     other = tmp_path / "fresh"
     run(FakeBroker(), other, ApprovedOrder("AAPL", "buy", 1, "x", ref_price=100.0, stop_price=95.0), dry_run=True)
     assert not stops_path(other).exists()
+
+
+
+# --- stop_breached: price already at/below the original stop, no open stop ---------------
+
+def _breached(tmp_path, positions=None):
+    save_stops({"MSFT": MSFT}, tmp_path)
+    return FakeBroker(positions=positions or {"MSFT": 6})
+
+
+@pytest.mark.parametrize("price", [88.10, 90.37])   # below, and exactly at the original stop
+def test_breached_stop_sells_at_market_through_safe_sell(tmp_path, price):
+    fb = _breached(tmp_path)
+    decision = RiskDecision(as_of=date(2026, 10, 9), breakers=OK)
+    alerts = []
+    report = run(fb, tmp_path, alerts=alerts, fresh={"MSFT": price}, decision=decision)
+    assert fb.calls == [("sell", "MSFT", 6, "tb-2026-10-12-MSFT-sell")]
+    assert [(r.side, r.status) for r in report.results] == [("sell", "filled")]
+    [o] = decision.approved
+    assert (o.symbol, o.side, o.qty) == ("MSFT", "sell", 6) and o.reason.startswith("stop_breached")
+    assert any("stop_breached" in m for _, m in alerts)
+    assert load_stops(tmp_path) == {}                    # position closed -> entry dropped
+
+
+def test_price_above_stop_replaces_the_stop_instead(tmp_path):
+    fb = _breached(tmp_path)
+    run(fb, tmp_path, fresh={"MSFT": 90.38})
+    assert fb.writes == ["stop"]
+
+
+def test_stale_or_missing_price_never_sells(tmp_path):
+    fb = _breached(tmp_path)
+    fb.on_stop = "raise"                                  # Alpaca rejects a stop above the market
+    alerts = []
+    run(fb, tmp_path, alerts=alerts, fresh={})            # the stale price was filtered out upstream
+    assert "sell" not in fb.writes
+    assert alerts[0][0] == "critical"
+
+
+@pytest.mark.parametrize("dry_run,market_open,status,why", [
+    (True, True, "dry_run", "dry-run"), (False, False, "skipped", "market closed")])
+def test_breached_stop_not_sold_in_dry_run_or_closed_market(tmp_path, dry_run, market_open, status, why):
+    fb = _breached(tmp_path)
+    alerts = []
+    report = run(fb, tmp_path, alerts=alerts, fresh={"MSFT": 85.0}, dry_run=dry_run, market_open=market_open)
+    assert fb.calls == [] and [(r.side, r.status) for r in report.results] == [("sell", status)]
+    assert alerts == [("critical", alerts[0][1])] and "stop_breached" in alerts[0][1] and why in alerts[0][1]
+
+
+def test_breached_but_open_stop_exists_does_nothing(tmp_path):
+    fb = _breached(tmp_path)
+    fb.add_stop("MSFT", 6, 90.37)                          # the live stop will handle it
+    run(fb, tmp_path, fresh={"MSFT": 85.0})
+    assert fb.calls == []
+
+
+def test_failed_breach_sell_is_critical(tmp_path):
+    fb = _breached(tmp_path)
+    fb.on_sell, fb.on_stop = "reject", "raise"
+    alerts = []
+    run(fb, tmp_path, alerts=alerts, fresh={"MSFT": 85.0})
+    assert alerts[-1][0] == "critical" and "stop_breached" in alerts[-1][1]
