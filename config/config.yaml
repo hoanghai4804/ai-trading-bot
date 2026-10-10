@@ -55,13 +55,14 @@ costs:
   taf_fee_max: 8.30
 
 backtest:
-  start: 2016-01-01
+  start: 2016-01-01               # first bar requested (SIP daily data starts 2016-01-04)
+  warmup_months: 12               # full-period comparison starts this long after `start` (indicators warm)
   initial_capital: 100000
   train_years: 3
   test_months: 6
   fast_grid: [10, 20, 30]
   slow_grid: [50, 100]
-  random_seeds: 50
+  random_seeds: 50                # random-entry benchmark runs (median + 5-95% range)
 
 schedule:
   timezone: America/New_York

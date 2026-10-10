@@ -77,11 +77,16 @@ def evaluate_circuit_breakers(
     cfg: CircuitBreakerConfig,
     broker_history: pd.Series,
     extra_histories: Iterable[pd.Series] = (),
+    peak_since: date | None = None,
 ) -> BreakerStatus:
+    """peak_since: ignore values dated before it for the peak (backtest: a halt was reviewed and
+    cleared, so the drawdown restarts from there). Live runs leave it None."""
     if current_equity <= 0:
         raise ValueError("current equity must be > 0")
     peak = current_equity
     for series in (broker_history, *extra_histories):
+        if peak_since is not None:
+            series = series[series.index >= pd.Timestamp(peak_since)]
         if not series.empty:
             peak = max(peak, float(series.max()))
     drawdown = 1 - current_equity / peak

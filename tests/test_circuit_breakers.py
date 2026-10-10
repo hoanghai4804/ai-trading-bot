@@ -94,3 +94,12 @@ def test_trip_halt_refuses_when_not_tripped(tmp_path):
     with pytest.raises(ValueError):
         trip_halt(s, tmp_path)
     assert read_halt(tmp_path) is None
+
+
+def test_peak_since_ignores_older_peaks_but_not_weekly_return():
+    h = _history({"2026-09-01": 120_000, "2026-10-02": 100_000, "2026-10-09": 94_000})
+    full = evaluate_circuit_breakers(94_000, MONDAY, CFG, h)
+    assert full.halt and full.peak_equity == 120_000
+    reset = evaluate_circuit_breakers(94_000, MONDAY, CFG, h, peak_since=date(2026, 10, 1))
+    assert not reset.halt and reset.peak_equity == 100_000
+    assert reset.previous_week_return == pytest.approx(-0.06) and reset.block_new_entries

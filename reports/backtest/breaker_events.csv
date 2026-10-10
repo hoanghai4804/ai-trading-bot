@@ -1,0 +1,16 @@
+run,session,kind,equity,peak,drawdown,previous_week_return,positions_sold,detail
+"sensitivity: stop 2.0xATR, cap 10%",2020-03-02,weekly_loss,132504,145214,0.0875228,-0.0727984,,previous calendar week return -7.28% < -5%
+"sensitivity: stop 2.0xATR, cap 10%",2020-03-09,drawdown_halt,126061,145214,0.131895,-0.00510942,AMZN GOOGL MSFT NVDA,"drawdown 13.19% >= 10% (equity 126,060.75, peak 145,213.65)"
+"sensitivity: stop 2.5xATR, cap 10%",2020-03-02,weekly_loss,132331,145296,0.0892274,-0.0745235,,previous calendar week return -7.45% < -5%
+"sensitivity: stop 2.5xATR, cap 10%",2020-03-09,drawdown_halt,125872,145296,0.133682,-0.00512787,AMZN GOOGL MSFT NVDA,"drawdown 13.37% >= 10% (equity 125,872.08, peak 145,295.53)"
+"sensitivity: stop 3.0xATR, cap 10%",2020-03-02,weekly_loss,134585,147179,0.0855686,-0.0707308,META,previous calendar week return -7.07% < -5%
+"sensitivity: stop 3.0xATR, cap 10%",2020-03-09,drawdown_halt,128272,147179,0.128465,0.00106424,AMZN GOOGL JNJ MSFT NVDA,"drawdown 12.85% >= 10% (equity 128,271.85, peak 147,179.18)"
+random full seed 3,2020-03-02,weekly_loss,114527,121809,0.059777,-0.0525947,,previous calendar week return -5.26% < -5%
+random full seed 3,2020-03-16,drawdown_halt,109115,121809,0.104214,-0.0162396,AAPL JPM NVDA,"drawdown 10.42% >= 10% (equity 109,114.69, peak 121,808.84)"
+random full seed 13,2022-10-03,drawdown_halt,111049,123577,0.101376,-0.00409406,JNJ JPM NVDA,"drawdown 10.14% >= 10% (equity 111,048.89, peak 123,576.62)"
+random full seed 26,2024-08-05,drawdown_halt,150743,169470,0.110499,-0.0136525,AAPL AMZN GOOGL JNJ META NVDA,"drawdown 11.05% >= 10% (equity 150,743.26, peak 169,469.50)"
+random full seed 33,2023-01-30,drawdown_halt,135641,151703,0.105878,-0.00753884,JNJ PG,"drawdown 10.59% >= 10% (equity 135,640.68, peak 151,702.67)"
+random full seed 40,2022-09-26,drawdown_halt,131664,146498,0.101257,-0.0101498,JNJ NVDA XOM,"drawdown 10.13% >= 10% (equity 131,664.04, peak 146,498.04)"
+random full seed 45,2025-04-21,drawdown_halt,145487,161842,0.101058,-0.00373222,GOOGL JNJ,"drawdown 10.11% >= 10% (equity 145,486.82, peak 161,842.29)"
+random full seed 48,2025-04-07,drawdown_halt,141443,161808,0.12586,-0.0433314,META,"drawdown 12.59% >= 10% (equity 141,443.12, peak 161,808.27)"
+random full seed 49,2020-03-16,drawdown_halt,115175,128544,0.104002,-0.0254133,AAPL MSFT NVDA,"drawdown 10.40% >= 10% (equity 115,174.86, peak 128,543.66)"

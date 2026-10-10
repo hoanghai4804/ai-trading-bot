@@ -13,22 +13,17 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 5 | Risk manager + circuit breakers | done | 2c02a78 |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | done | eacb9c2 |
 | 6b | Mode line, fresh/raw ref price, stop registry, signal window | done | 7f33780 |
-| 6c | Sell at market when the original stop is breached (stop_breached) | done | (this commit) |
-| 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
+| 6c | Sell at market when the original stop is breached (stop_breached) | done | 9289d31 |
+| 7 | Backtest (walk-forward, costs, 3 benchmarks) | done | (this commit) |
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Session 2026-10-10 (Saturday) ended after phases 6, 6b (7f33780) and 6c (stop_breached) were committed and
-  pushed. 232 tests pass. Next session starts with phase 7 (user will /clear first).
+- Phase 7 (backtest) committed 2026-10-10. 278 tests pass.
 - **Monday 2026-10-12 after 15:30 Paris (market open)**: run `python -m tradingbot test-order --execute` once
-  (1 SPY share, OTO stop, verify, close). It is the first real check that Alpaca accepts our OTO request
-  (market + GTC + stop_loss). Then `run` (dry-run) once with the market open: reference prices must be
-  fresh (< 5 min) and the raw closes must match the last session.
-- Then: **phase 7 — Backtest**.
-- Phase 7 requirement (user): the 5% cap binds -> at most ~55% of equity invested. The backtest report must show
-  average invested fraction (exposure) and compare on Sharpe and max drawdown, not only absolute return.
-  Decide on loosening the 5% cap only after phase 7.
+  (1 SPY share, OTO stop, verify, close) = first real check that Alpaca accepts our OTO request. Then `run`
+  (dry-run) once with the market open: reference prices fresh (< 5 min), raw closes match the last session.
+- Then: **phase 8 — Memory, reports, Discord**.
 - Workflow reminder: tests pass -> stop and summarize in Vietnamese -> wait for approval -> commit -> push.
 
 ## Log
@@ -174,3 +169,44 @@ Plan: [docs/PLAN.md](PLAN.md).
 - Mutation check: 9 mutants (check off, `<` vs `<=`, stale prices reaching the executor, dry-run / closed
   market guards, bypassing safe sell, reason not recorded, alert level, stale pruning) -> all caught.
 - 232 tests pass.
+
+### Phase 7 — Backtest
+- `backtest/engine.py`: replays the Monday run session by session with the SAME Strategy, `signal_window`,
+  `evaluate_circuit_breakers` and `RiskManager` as live. Order per session: stop gapped at the open -> sold at the
+  OPEN (`stop_gap`); Monday run (as_of = d-1, bars cut like live, ref = Monday open, gap check vs bar close);
+  intraday stop (low <= stop) -> sold at the stop, entry day included; mark at the close. Holiday Monday = no run
+  that week, next window widens like live. Monday-only runs -> weekly count is always 0 before the run.
+- HALT in the backtest: the risk manager sells everything at the open and the event is recorded. Main line
+  (`halt_mode="continue"`) assumes a human reviewed and deleted HALT.lock: trading resumes the next week and the
+  drawdown peak restarts at the halt session (new `peak_since` argument of `evaluate_circuit_breakers`, live runs
+  leave it None). Variant `halt_mode="stop"` (reported as `MA20/50 (HALT = stop)`) stays in cash to the end.
+- `costs.py`: 5 bps slippage per side, SEC + TAF (capped) on sells, rounded up to the cent.
+- `walk_forward.py`: train 3 y / test 6 m, grid fast {10,20,30} x slow {50,100}, best train Sharpe (NaN worst,
+  ties = grid order); train runs only get bars cut at train_end; out-of-sample = one continuous run.
+- `benchmarks.py`: SPY buy & hold, SMA200 on SPY (Monday, 100%/0%), RandomStrategy in the same engine (same risk
+  rules, stops, breakers, costs) calibrated to MA20/50 signal frequency, 50 seeds -> median + p5/p95.
+- `report.py` + CLI `backtest [--end --seeds --workers --out]` -> `reports/backtest/` (report.md in Vietnamese,
+  CSVs, equity.svg). Config: `backtest.warmup_months: 12` (full period starts 2017-01-01). No config change from
+  the sensitivity table (stop 2/2.5/3 x ATR x cap 5%/10% is report-only).
+- Parity test: week 2026-04-27 on real SIP bars (fixture) -> backtest decision == live `run_weekly` (dry-run):
+  AAPL 18 @ 265.62 stop 253.88, SPY 7 @ 709.58 stop 692.38, NVDA 23 @ 209.17 stop 198.29; GOOGL blocked
+  `weekly_limit`.
+- Results (SIP adjusted bars 2016-01-04 -> 2026-10-09; full period 2017-01-01 -> 2026-10-09):
+  MA20/50 +3.5%/y, Sharpe 0.76, max DD 9.5%, exposure 23%, 231 trades, win 38%, hold 64 d.
+  SPY B&H +15.3%/y, Sharpe 0.89, DD 33.8%. SMA200 SPY +11.2%/y, Sharpe 0.95, DD 17.6%.
+  Random x50 median +5.3%/y, Sharpe 1.08 [p5 0.79; p95 1.29]. MA20/50 sits at the ~4th percentile of the random
+  seeds on return and Sharpe in the full period, below every seed out-of-sample (2019+). SPY at the same 23%
+  exposure: +42.4% vs MA20/50 +39.2%. Walk-forward (OOS) +2.5%/y, Sharpe 0.66 vs fixed MA20/50 +3.1%/y, 0.69;
+  chosen pair changes often (30/50 x6, 10/100 x5, 10/50 x3, 30/100 x2 over 16 windows) -> no stable edge.
+  Blocked buys (full, MA20/50): correlation 28, weekly_limit 5, gap_too_large 4, drawdown_halt 0.
+- **Conclusion (user decision 2026-10-10): the MA20/50 signal does not beat the random-entry benchmark (same risk
+  rules). Improving the strategy is work for after phase 9. The 5% position cap stays; config unchanged.**
+- Mutation check (18 mutants, code changed, tests untouched, restored): entry at Friday close / Monday close,
+  strategy seeing Monday's bar, no slippage / no fees / no costs / fees not debited, breakers disabled (empty
+  history, thresholds 100%), halt=stop keeps trading, peak not reset, gapped stop filled at the stop, open-gap
+  check removed, walk-forward trained on the test window / extended into it / picking the worst Sharpe -> all
+  caught. 2 survived: random benchmark without risk rules, random benchmark without a usable stop -> added
+  `test_random_job_applies_the_configured_risk_rules` -> 18/18 caught.
+- Limits (in report.md section 9): survivorship bias of today's watchlist, data only from 2016, adjusted prices,
+  Monday open vs ~11:07 live fill, no intraday order, GTC 90-day cancel not simulated, cash earns 0%.
+- 278 tests pass.

@@ -1,0 +1,5 @@
+code,MA20/50 full,walk-forward,random full (mean of 50)
+correlation,28,27,28.7
+drawdown_halt,0,0,0.1
+gap_too_large,4,5,9.32
+weekly_limit,5,3,0.96

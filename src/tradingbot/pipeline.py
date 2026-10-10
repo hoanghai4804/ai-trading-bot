@@ -120,7 +120,7 @@ def run_weekly(
     window = signal_window(bars, as_of, _date_or_none(last_run.get("last_trading_as_of")),
                            int(cfg.strategy.params.get("cross_lookback_sessions", 1)),
                            cfg.schedule.max_signal_window_sessions)
-    strategy = build_strategy(_with_window(cfg.strategy, window))
+    strategy = build_strategy(strategy_with_window(cfg.strategy, window))
     signals = strategy.generate_signals(bars, as_of, positions=list(positions), last_exit=exits)
 
     buy_symbols = sorted({s.symbol for s in signals if s.action == "buy"})
@@ -152,14 +152,14 @@ def signal_window(bars: Mapping[str, pd.DataFrame], as_of: date, last_trading_as
     """Sessions after the last trading run's as_of up to `as_of`, clamped to [minimum, maximum]."""
     if last_trading_as_of is None:
         return minimum
-    sessions: set[pd.Timestamp] = set()
+    sessions = pd.DatetimeIndex([])
     for frame in bars.values():
-        sessions.update(frame.index)
-    n = sum(1 for d in sessions if pd.Timestamp(last_trading_as_of) < d <= pd.Timestamp(as_of))
+        sessions = sessions.union(frame.index)
+    n = int(((sessions > pd.Timestamp(last_trading_as_of)) & (sessions <= pd.Timestamp(as_of))).sum())
     return max(minimum, min(n, maximum))
 
 
-def _with_window(cfg: StrategyConfig, window: int) -> StrategyConfig:
+def strategy_with_window(cfg: StrategyConfig, window: int) -> StrategyConfig:
     if "cross_lookback_sessions" not in cfg.params:
         return cfg
     return cfg.model_copy(update={"params": {**cfg.params, "cross_lookback_sessions": window}})

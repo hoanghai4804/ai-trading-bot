@@ -87,6 +87,7 @@ class CostsConfig(_Strict):
 
 class BacktestConfig(_Strict):
     start: date
+    warmup_months: int = Field(ge=0)
     initial_capital: float = Field(gt=0)
     train_years: int = Field(ge=1)
     test_months: int = Field(ge=1)
