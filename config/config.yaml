@@ -33,11 +33,17 @@ risk:
 execution:
   order_id_prefix: tb             # client_order_id = tb-<date>-<symbol>-<side>
   sell_fill_timeout_sec: 60       # wait this long for a market sell before treating it as failed
+  buy_fill_timeout_sec: 30        # wait this long to report a buy fill (an unfilled buy is not canceled)
+  cancel_timeout_sec: 15          # wait this long for a canceled stop to be confirmed before selling
+  poll_interval_sec: 1            # order-status polling period
   run_lock_ttl_min: 30            # state/run.lock older than this is considered stale
+  test_order_symbol: SPY          # manual `test-order` command only (never in the weekly run)
+  test_order_stop_pct: 0.05       # test-order stop = ref * (1 - pct)
 
 data:
   feed: sip                       # historical daily bars; falls back to fallback_feed on permission error
   fallback_feed: iex
+  latest_price_feed: iex          # reference price = latest trade; free plans get real-time trades on IEX only
   history_days: 400               # calendar days fetched for live runs (enough for MA50/ATR/corr)
   cache_dir: data/cache
 

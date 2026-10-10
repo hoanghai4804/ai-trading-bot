@@ -40,6 +40,8 @@ py -3.11 -m venv .venv
 .venv/Scripts/python -m tradingbot check       # paper account + market status (exit 2 = safety abort)
 .venv/Scripts/python -m tradingbot data        # watchlist indicators up to yesterday (--as-of YYYY-MM-DD)
 .venv/Scripts/python -m tradingbot signals     # strategy proposals only, no risk/orders (--as-of, --held)
+.venv/Scripts/python -m tradingbot run         # weekly run, DRY-RUN unless --execute (paper orders)
+.venv/Scripts/python -m tradingbot test-order  # MANUAL only (never in the weekly run): 1 SPY + OTO stop, verify, close; --execute
 ```
 
 ## Key decisions

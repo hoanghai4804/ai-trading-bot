@@ -7,17 +7,19 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
 
 from tradingbot.broker.alpaca_client import BrokerClient
-from tradingbot.config import load_config
+from tradingbot.config import Config, load_config
 from tradingbot.credentials import MissingCredentialsError, get_alpaca_credentials
-from tradingbot.data.market_data import MarketData, default_alpaca_source
+from tradingbot.data.market_data import LatestPrices, MarketData, default_alpaca_source, today_new_york
+from tradingbot.execution.test_order import run_test_order
 from tradingbot.indicators.technical import atr, return_correlation, sma
-from tradingbot.safety import SafetyError, read_halt
+from tradingbot.pipeline import RunResult, run_weekly
+from tradingbot.safety import RunLock, SafetyError, assert_not_halted, read_halt
 from tradingbot.strategies.registry import build_strategy
 
 
@@ -88,6 +90,75 @@ def _cmd_signals(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_run(result: RunResult) -> None:
+    mode = "DRY-RUN (nothing sent)" if result.dry_run else "EXECUTE (paper orders)"
+    print(f"run today={result.today} as_of={result.as_of} mode={mode} market_open={result.market_open}")
+    print(f"equity={result.equity:,.2f} cash={result.cash:,.2f} positions="
+          + (",".join(f"{s}:{q:g}" for s, q in sorted(result.positions.items())) or "-")
+          + f" new_positions_this_week={result.new_positions_this_week}")
+    b = result.decision.breakers
+    week = "unknown" if b.previous_week_return is None else f"{b.previous_week_return:+.2%}"
+    print(f"breakers: halt={b.halt} block_new={b.block_new_entries} prev_week={week} drawdown={b.drawdown:.2%}")
+    for f in result.stop_fills:
+        print(f"stop filled since last week: {f.symbol} {f.qty:g} @ {f.price} on {f.day}")
+    print(f"signals={len(result.signals)}: " + (", ".join(f"{s.action} {s.symbol}" for s in result.signals) or "-"))
+    for o in result.decision.approved:
+        extra = f" ref={o.ref_price:.2f} stop={o.stop_price:.2f} ({o.limited_by})" if o.side == "buy" else ""
+        print(f"approved {o.side:4} {o.symbol:6} qty={o.qty:g}{extra} | {o.reason}")
+    for bl in result.decision.blocked:
+        print(f"blocked  {bl.side:4} {bl.symbol:6} {bl.code}: {bl.detail}")
+    for r in result.execution.results:
+        stop = f" stop={r.stop_price:.2f}" if r.stop_price else ""
+        qty = f" qty={r.qty:g}" if r.qty is not None else ""
+        print(f"exec {r.status:9} {r.side:4} {r.symbol:6}{qty}{stop} id={r.client_order_id or '-'} {r.detail}")
+    print(f"orders_sent={result.execution.orders_sent}")
+    for w in [*result.warnings, *result.execution.alerts]:
+        print(f"WARNING {w}")
+
+
+def _connect(args: argparse.Namespace) -> tuple[Config, BrokerClient]:
+    cfg = load_config(args.config)
+    return cfg, BrokerClient.connect(get_alpaca_credentials())
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    """Weekly run. Dry-run unless --execute: then approved orders are sent to the PAPER account."""
+    try:
+        assert_not_halted()
+        cfg, broker = _connect(args)
+        with RunLock(ttl=timedelta(minutes=cfg.execution.run_lock_ttl_min)):
+            md = MarketData(source=default_alpaca_source(), config=cfg.data)
+            result = run_weekly(
+                cfg, broker,
+                load_bars=lambda symbols, start, as_of: md.get_bars(symbols, start=start, as_of=as_of),
+                latest_prices=LatestPrices(cfg.data.latest_price_feed).get,
+                now=datetime.now(timezone.utc), today=today_new_york(), dry_run=not args.execute,
+            )
+    except (SafetyError, MissingCredentialsError) as exc:
+        print(f"ABORT: {exc}", file=sys.stderr)
+        return 2
+    _print_run(result)
+    return 0
+
+
+def _cmd_test_order(args: argparse.Namespace) -> int:
+    """Manual order-path check (1 share, OTO stop, then close). Never used by the weekly run."""
+    try:
+        assert_not_halted()
+        cfg, broker = _connect(args)
+        with RunLock(ttl=timedelta(minutes=cfg.execution.run_lock_ttl_min)):
+            report = run_test_order(cfg, broker, LatestPrices(cfg.data.latest_price_feed).get,
+                                    now=datetime.now(timezone.utc), dry_run=not args.execute)
+    except (SafetyError, MissingCredentialsError) as exc:
+        print(f"ABORT: {exc}", file=sys.stderr)
+        return 2
+    print(f"test-order mode={'DRY-RUN (nothing sent)' if report.dry_run else 'EXECUTE (paper)'}")
+    for step, ok, detail in report.steps:
+        print(f"{'PASS' if ok else 'FAIL'} {step}: {detail}")
+    print("RESULT " + ("PASS" if report.ok else "FAIL"))
+    return 0 if report.ok else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tradingbot")
     parser.add_argument("--config", default=None, help="path to config.yaml (default: config/config.yaml)")
@@ -105,6 +176,13 @@ def build_parser() -> argparse.ArgumentParser:
     signals.add_argument("--as-of", default=None, help="YYYY-MM-DD, must be before today (default: yesterday)")
     signals.add_argument("--held", default="", help="comma-separated symbols to treat as held (exit checks)")
     signals.set_defaults(func=_cmd_signals)
+    run = sub.add_parser("run", help="weekly run: signals -> risk -> orders (dry-run unless --execute)")
+    run.add_argument("--execute", action="store_true", help="send approved orders to the PAPER account")
+    run.set_defaults(func=_cmd_run)
+    test_order = sub.add_parser("test-order", help="MANUAL: buy 1 test share with OTO stop, verify, close "
+                                                   "(dry-run unless --execute; never in the weekly run)")
+    test_order.add_argument("--execute", action="store_true", help="really send the test orders (market open)")
+    test_order.set_defaults(func=_cmd_test_order)
     return parser
 
 

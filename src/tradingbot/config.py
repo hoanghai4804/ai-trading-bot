@@ -61,12 +61,18 @@ class RiskConfig(_Strict):
 class ExecutionConfig(_Strict):
     order_id_prefix: str = Field(pattern=r"^[a-z]{2,8}$")
     sell_fill_timeout_sec: int = Field(ge=1)
+    buy_fill_timeout_sec: int = Field(ge=0)
+    cancel_timeout_sec: int = Field(ge=1)
+    poll_interval_sec: float = Field(gt=0)
     run_lock_ttl_min: int = Field(ge=1)
+    test_order_symbol: str
+    test_order_stop_pct: float = Fraction
 
 
 class DataConfig(_Strict):
     feed: Literal["sip", "iex"]
     fallback_feed: Literal["sip", "iex"]
+    latest_price_feed: Literal["sip", "iex"]
     history_days: int = Field(ge=120)
     cache_dir: str
 

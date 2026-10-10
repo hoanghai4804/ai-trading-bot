@@ -108,16 +108,40 @@ class AlpacaBarsSource:
         return frame_from_alpaca(bars.df)
 
 
+def _data_client_factory() -> object:
+    from alpaca.data.historical import StockHistoricalDataClient
+
+    from tradingbot.credentials import get_alpaca_credentials
+
+    creds = get_alpaca_credentials()
+    return StockHistoricalDataClient(creds.api_key, creds.secret_key)
+
+
 def default_alpaca_source() -> AlpacaBarsSource:
-    def factory() -> object:
-        from alpaca.data.historical import StockHistoricalDataClient
+    return AlpacaBarsSource(_data_client_factory)
 
-        from tradingbot.credentials import get_alpaca_credentials
 
-        creds = get_alpaca_credentials()
-        return StockHistoricalDataClient(creds.api_key, creds.secret_key)
+class LatestPrices:
+    """Reference prices = latest trade per symbol (taken at order time, never used for signals)."""
 
-    return AlpacaBarsSource(factory)
+    def __init__(self, feed: str, client_factory: Callable[[], object] = _data_client_factory) -> None:
+        self.feed = feed
+        self._client_factory = client_factory
+        self._client: object | None = None
+
+    def get(self, symbols: Iterable[str]) -> dict[str, float]:
+        """{symbol: price}; symbols without a valid trade are left out (callers treat them as unknown)."""
+        from alpaca.data.enums import DataFeed
+        from alpaca.data.requests import StockLatestTradeRequest
+
+        symbols = sorted(set(symbols))
+        if not symbols:
+            return {}
+        if self._client is None:
+            self._client = self._client_factory()
+        trades = self._client.get_stock_latest_trade(  # type: ignore[attr-defined]
+            StockLatestTradeRequest(symbol_or_symbols=symbols, feed=DataFeed(self.feed)))
+        return {s: float(t.price) for s, t in trades.items() if t is not None and t.price and t.price > 0}
 
 
 @dataclass

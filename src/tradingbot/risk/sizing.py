@@ -38,7 +38,7 @@ def check_entry_price(ref_price: float, last_close: float, stop_price: float, ma
     gap = gap_pct(ref_price, last_close)
     if abs(gap) > max_gap_pct + _EPS:
         return PriceCheck(False, "gap_too_large",
-                          f"ref {ref_price:.2f} vs last close {last_close:.2f} = {gap:+.2%} (max ±{max_gap_pct:.0%})")
+                          f"ref {ref_price:.2f} vs last close {last_close:.2f} = {gap:+.2%} (max +/-{max_gap_pct:.0%})")
     if stop_price <= 0 or stop_price >= ref_price:
         return PriceCheck(False, "invalid_stop", f"stop {stop_price:.2f} not in (0, ref {ref_price:.2f})")
     return PriceCheck(True)

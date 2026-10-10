@@ -11,23 +11,21 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 3 | Data & indicators | done | 4dd1754 |
 | 4 | Strategy (MA crossover) | done | f16bc77 |
 | 5 | Risk manager + circuit breakers | done | 2c02a78 |
-| 6 | Execution (dry-run, OTO, safe sell, idempotency) | todo | |
+| 6 | Execution (dry-run, OTO, safe sell, idempotency) | done, awaiting approval | |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Last session ended 2026-10-10 after phase 5 was committed and pushed.
-- Then: **phase 6 — Execution** (docs/PLAN.md §Các giai đoạn, item 6). Phase 6 must supply to `RiskManager.review`:
-  latest-trade ref prices, `new_positions_this_week` from Alpaca order history (client_order_id prefix, NY calendar
-  week), bars for watchlist ∪ held symbols, and `last_exit` for the strategy. On `decision.halt`: write HALT.lock
-  (`trip_halt`) BEFORE liquidating, cancel open orders, then sell.
-- Phase 6 requirement (user): `new_positions_this_week` counts only bot BUY orders that are filled, partially
-  filled or still pending/open; never rejected, canceled or expired. Needs tests for each status.
-- Phase 7 requirement (user): the 5% cap binds → at most ~55% of equity invested. The backtest report must show
+- Session 2026-10-10 (Saturday): extra risk tests + phase 6 written, tests pass, NOT committed yet (waiting for approval).
+- **Monday 2026-10-12 after 15:30 Paris (market open)**: run `python -m tradingbot test-order --execute` once
+  (1 SPY share, OTO stop, verify, close). It is the first real check that Alpaca accepts our OTO request
+  (market + GTC + stop_loss). Then `run` (dry-run) once with the market open.
+- Then: **phase 7 — Backtest**.
+- Phase 7 requirement (user): the 5% cap binds -> at most ~55% of equity invested. The backtest report must show
   average invested fraction (exposure) and compare on Sharpe and max drawdown, not only absolute return.
   Decide on loosening the 5% cap only after phase 7.
-- Workflow reminder: tests pass → stop and summarize in Vietnamese → wait for approval → commit → push.
+- Workflow reminder: tests pass -> stop and summarize in Vietnamese -> wait for approval -> commit -> push.
 
 ## Log
 ### Phase 1 — Project skeleton
@@ -92,3 +90,46 @@ Plan: [docs/PLAN.md](PLAN.md).
   sell-when-not-held allowed → all caught. Corr 0.8→0.99 initially survived (fixtures only had corr 1.0 or ~0)
   → added tests with corr ~0.9 (blocked) and ~0.7 (allowed); now caught.
 - 133 tests pass.
+
+### Before phase 6 — extra risk tests + mutation re-run
+- New tests for rules guarded by a single test: risk 1%/trade (exact qty at two equity levels; budget is 1% of
+  equity per trade, not of remaining cash), halt blocks buys (halt code wins over every other check; halt flag
+  alone is enough), halt liquidates (all positions incl. fractional and non-watchlist, no exit signal needed;
+  each symbol once, strategy reason kept).
+- Mutation re-run (12 mutants on these 3 rules): all caught. 4 of them were caught ONLY by the new tests:
+  halt checked after watchlist/held, halt relying on block_new_entries, liquidating watchlist symbols only,
+  liquidation overwriting the exit reason.
+
+### Phase 6 — Execution
+- `broker/alpaca_client.py`: `OrderSnapshot` (legs nested), get_orders / get_order / get_order_by_client_id
+  (404 -> None), `submit_oto_buy` (market, GTC, stop_loss leg), `submit_market_sell` (DAY), `submit_stop_sell`
+  (GTC), `cancel_order`. `data/market_data.py`: `LatestPrices` (latest trade, feed `data.latest_price_feed`=iex).
+- `execution/orders.py` (pure): ids `tb-<date>-<SYM>-<buy|sell>` (restored stops `-stop-HHMMSS`);
+  `new_positions_this_week` = distinct symbols of bot BUY orders submitted this NY calendar week, any status
+  except rejected/canceled/expired (those count only if shares filled); `last_exits` (bot market sells + OTO stop
+  legs, attributed via the parent id); `stop_fills_since` (mid-week stop reconciliation); `open_stop_sells`.
+- `execution/executor.py`: halt -> HALT.lock written first, open non-stop orders canceled, then sells; market
+  closed -> nothing sent; safe sell = cancel stop(s) -> wait for confirmation (else no sell) -> market sell ->
+  wait fill; on reject / API error / timeout: cancel the sell, restore the old stop for the remaining shares +
+  alert; restore failure or no previous stop -> critical alert. Buys: idempotency checks (held, same id,
+  open buy) then OTO; filled buy without stop leg -> critical alert. Final check: held positions without an
+  open stop -> alert. Dry-run reads only (tested: zero write calls).
+- `pipeline.py` `run_weekly`: account/clock/positions/order history (35 days) -> bars (watchlist + held, cut
+  at yesterday) -> signals (with last_exit) -> latest prices -> breakers -> RiskManager -> Executor.
+- CLI: `run` (dry-run unless `--execute`), `test-order` (manual only, dry-run unless `--execute`; refuses if
+  SPY is held or has open orders; ids `tbtest-...` so never counted as bot orders).
+- New config keys: execution.buy_fill_timeout_sec, cancel_timeout_sec, poll_interval_sec, test_order_symbol,
+  test_order_stop_pct; data.latest_price_feed.
+- Real checks on 2026-10-10 (Saturday, market closed, dry-run only): `check`, `run` (0 signals as of 10-09),
+  `test-order` (plan only). Replay of week 2026-04-27 with real data: same decisions as the phase-5 replay;
+  with today's prices AAPL/SPY/NVDA are blocked by the gap check (+9% to +24%).
+- Mutation check on execution rules (13 mutants: dry-run guards, market-closed guard, HALT.lock write,
+  idempotency, stop cancel/restore, weekly count statuses, NY week, test-order prefix/closed market): all caught.
+- 191 tests pass.
+- Open issues:
+  - The OTO request shape is only unit-tested; first real acceptance check = test-order on Monday.
+  - Alpaca cancels GTC orders after 90 days: stops of positions held longer disappear. Currently only alerted
+    ("held without an open stop"); auto re-placing is a later improvement.
+  - Halt while the market is closed: HALT.lock is written but nothing is sold (critical alert, manual action).
+  - Alerts go to stderr until Discord (phase 8). decisions.json / summary / last_run.json / local equity log
+    are phase 8.

@@ -100,3 +100,73 @@ def test_cli_check_aborts_with_exit_code_2_on_safety_error(monkeypatch, capsys):
     assert cli.main(["check"]) == 2
     err = capsys.readouterr().err
     assert "ABORT" in err and "leak" not in err
+
+
+# --- orders ----------------------------------------------------------------------------
+
+def _alpaca_order(**kw):
+    from alpaca.trading.enums import OrderClass, OrderSide, OrderStatus, OrderType
+
+    base = dict(id="uuid-1", client_order_id="tb-2026-10-12-AAPL-buy", symbol="AAPL", side=OrderSide.BUY,
+                type=OrderType.MARKET, order_type=OrderType.MARKET, order_class=OrderClass.OTO,
+                status=OrderStatus.FILLED, qty="10", filled_qty="10", filled_avg_price="201.5", stop_price=None,
+                submitted_at=datetime(2026, 10, 12, 15, 7, tzinfo=timezone.utc), filled_at=None, legs=None)
+    base.update(kw)
+    return SimpleNamespace(**base)
+
+
+class OrderClient(FakeTradingClient):
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.submitted = []
+
+    def submit_order(self, request):
+        self.submitted.append(request)
+        return _alpaca_order()
+
+    def get_order_by_client_id(self, cid):
+        from alpaca.common.exceptions import APIError
+
+        raise APIError('{"code": 40410000, "message": "order not found"}', SimpleNamespace(response=SimpleNamespace(status_code=404)))
+
+    def get_orders(self, request):
+        from alpaca.trading.enums import OrderSide, OrderStatus, OrderType
+
+        leg = _alpaca_order(id="uuid-2", client_order_id="leg", side=OrderSide.SELL, type=OrderType.STOP,
+                            status=OrderStatus.NEW, filled_qty="0", filled_avg_price=None, stop_price="190.12")
+        return [_alpaca_order(legs=[leg])]
+
+
+def test_order_snapshot_converts_enums_numbers_and_legs():
+    broker = BrokerClient.connect(CREDS, client_factory=lambda *a, **kw: OrderClient(*a, **kw))
+    [o] = broker.get_orders(status="all")
+    assert (o.side, o.type, o.order_class, o.status, o.qty, o.filled_avg_price) == (
+        "buy", "market", "oto", "filled", 10.0, 201.5)
+    [leg] = o.legs
+    assert (leg.side, leg.type, leg.status, leg.stop_price, leg.is_open) == ("sell", "stop", "new", 190.12, True)
+    assert not o.is_open
+
+
+def test_oto_buy_request_is_market_gtc_with_stop_loss():
+    client_holder = []
+
+    def make(*a, **kw):
+        client_holder.append(OrderClient(*a, **kw))
+        return client_holder[0]
+
+    broker = BrokerClient.connect(CREDS, client_factory=make)
+    broker.submit_oto_buy("AAPL", 10, 190.12, "tb-2026-10-12-AAPL-buy")
+    broker.submit_market_sell("AAPL", 10, "tb-2026-10-12-AAPL-sell")
+    broker.submit_stop_sell("AAPL", 10, 190.12, "tb-2026-10-12-AAPL-stop-1")
+    buy, sell, stop = (r.to_request_fields() for r in client_holder[0].submitted)
+    assert {k: str(getattr(v, "value", v)) for k, v in buy.items() if k != "stop_loss"} == {
+        "symbol": "AAPL", "qty": "10.0", "side": "buy", "type": "market", "time_in_force": "gtc",
+        "order_class": "oto", "client_order_id": "tb-2026-10-12-AAPL-buy"}
+    assert buy["stop_loss"] == {"stop_price": 190.12}
+    assert (sell["type"].value, sell["time_in_force"].value, sell["side"].value) == ("market", "day", "sell")
+    assert (stop["type"].value, stop["time_in_force"].value, stop["stop_price"]) == ("stop", "gtc", 190.12)
+
+
+def test_unknown_client_order_id_returns_none():
+    broker = BrokerClient.connect(CREDS, client_factory=lambda *a, **kw: OrderClient(*a, **kw))
+    assert broker.get_order_by_client_id("tb-2026-10-12-AAPL-buy") is None
