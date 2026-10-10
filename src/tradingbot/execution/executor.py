@@ -7,7 +7,9 @@ Order of work:
     is rejected or does not fill in time, put the old GTC stop back for the remaining
     shares and alert. If re-placing the stop fails too, a critical alert is raised.
  4. Buys: market + GTC stop attached (OTO), so the stop exists as soon as the buy fills.
- 5. Protection check: every held position should have an open stop; missing ones are alerted.
+ 5. Stop reconciliation (state/stops.json holds each position's ORIGINAL stop): a held position
+    without an open stop gets exactly its original stop back (+ alert); a position with no
+    recorded stop is a critical alert. Stops are never moved. Closed positions leave the file.
 
 Idempotency: client_order_id is deterministic (`<prefix>-<date>-<SYMBOL>-<buy|sell>`), and
 before sending anything the executor checks for an existing order with that id, an open
@@ -30,6 +32,7 @@ from typing import Any, Literal, Protocol
 from tradingbot.broker.alpaca_client import OrderSnapshot, PositionSnapshot
 from tradingbot.config import ExecutionConfig
 from tradingbot.execution.orders import client_order_id, is_stop_sell, open_stop_sells
+from tradingbot.execution.stop_registry import StopEntry, load_stops, save_stops
 from tradingbot.risk.circuit_breakers import trip_halt
 from tradingbot.risk.manager import ApprovedOrder, RiskDecision
 from tradingbot.safety import STATE_DIR
@@ -112,11 +115,13 @@ class Executor:
         self._monotonic = monotonic
         self._now = now
         self.report = ExecutionReport(dry_run=dry_run, market_open=False)
+        self.stops: dict[str, StopEntry] = {}
 
     # --- public --------------------------------------------------------------------
 
     def execute(self, decision: RiskDecision, market_open: bool) -> ExecutionReport:
         self.report = ExecutionReport(dry_run=self.dry_run, market_open=market_open)
+        self.stops = load_stops(self.state_dir)
         sells = [o for o in decision.approved if o.side == "sell"]
         buys = [o for o in decision.approved if o.side == "buy"]
         if decision.halt:
@@ -128,6 +133,7 @@ class Executor:
             for o in sells + buys:
                 self._add(OrderResult(o.symbol, o.side, "skipped", "market closed: no order sent",
                                       self._cid(o.symbol, o.side), qty=o.qty, stop_price=o.stop_price))
+            self._reconcile_stops(can_send=False)
             return self.report
         if decision.halt:
             self._cancel_open_non_stop_orders()
@@ -135,7 +141,7 @@ class Executor:
             self.safe_sell(o.symbol, self._cid(o.symbol, "sell"))
         for o in buys:
             self._buy(o)
-        self._check_stops()
+        self._reconcile_stops(can_send=True)
         return self.report
 
     def safe_sell(self, symbol: str, cid: str) -> OrderResult:
@@ -151,7 +157,8 @@ class Executor:
         if any(o.side == "sell" and not is_stop_sell(o) for o in open_orders):
             return self._add(OrderResult(symbol, "sell", "skipped", "already_submitted (open sell order)", cid))
         stops = [o for o in open_orders if is_stop_sell(o)]
-        old_stop = max((o.stop_price for o in stops if o.stop_price), default=None)
+        entry = self.stops.get(symbol)
+        old_stop = entry.stop_price if entry else max((o.stop_price for o in stops if o.stop_price), default=None)
         if self.dry_run:
             return self._add(OrderResult(symbol, "sell", "dry_run",
                                          f"would cancel {len(stops)} stop(s), then market sell", cid, qty=qty,
@@ -243,6 +250,7 @@ class Executor:
             self._alert("warning", f"{o.symbol}: buy not sent ({exc})")
             return self._add(OrderResult(o.symbol, "buy", "failed", f"submit error: {exc}", cid, qty=qty,
                                          stop_price=o.stop_price))
+        self.stops[o.symbol] = StopEntry(o.stop_price, self.today, cid)
         final = self.wait_terminal(order.id, self.cfg.buy_fill_timeout_sec)
         if final.status == "filled":
             if not any(is_stop_sell(leg) for leg in final.legs):
@@ -281,11 +289,48 @@ class Executor:
             except Exception as exc:  # noqa: BLE001
                 self._alert("warning", f"{o.symbol}: cancel of open order {o.id} failed ({exc})")
 
-    def _check_stops(self) -> None:
+    def _reconcile_stops(self, can_send: bool) -> None:
+        """Every held position keeps an open stop at its ORIGINAL price; the registry follows positions."""
         open_orders = self.broker.get_orders(status="open", nested=False)
-        for p in self.broker.get_positions():
-            if p.qty > 0 and not open_stop_sells(open_orders, p.symbol):
-                self._alert("warning", f"{p.symbol}: {p.qty:g} shares held without an open stop order")
+        held = {p.symbol: p.qty for p in self.broker.get_positions() if p.qty > 0}
+        for symbol, qty in sorted(held.items()):
+            entry = self.stops.get(symbol)
+            live = open_stop_sells(open_orders, symbol)
+            if live:
+                moved = [s.stop_price for s in live if entry and s.stop_price != entry.stop_price]
+                if moved:
+                    self._alert("warning", f"{symbol}: open stop at {moved} differs from the original stop "
+                                           f"{entry.stop_price:.2f}; left unchanged")
+                continue
+            if entry is None:
+                self._alert("critical", f"{symbol}: {qty:g} shares held without an open stop and no original "
+                                        "stop recorded; UNPROTECTED")
+                continue
+            self._replace_stop(symbol, qty, entry, can_send)
+        pending_buys = {o.symbol for o in open_orders if o.side == "buy"}
+        for symbol in sorted(set(self.stops) - set(held) - pending_buys):
+            del self.stops[symbol]   # position closed (sold or stopped out)
+        if not self.dry_run:
+            save_stops(self.stops, self.state_dir)
+
+    def _replace_stop(self, symbol: str, qty: float, entry: StopEntry, can_send: bool) -> None:
+        why = f"no open stop; original stop {entry.stop_price:.2f} (set {entry.entry_date})"
+        if self.dry_run or not can_send:
+            status = "dry_run" if self.dry_run else "skipped"
+            self._add(OrderResult(symbol, "stop", status, f"{why}: would re-place it", qty=qty,
+                                  stop_price=entry.stop_price))
+            self._alert("warning", f"{symbol}: {why}; NOT re-placed in this run "
+                                   f"({'dry-run' if self.dry_run else 'market closed'})")
+            return
+        cid = client_order_id(self.cfg.order_id_prefix, self.today, symbol, "stop",
+                              suffix=self._now().strftime("%H%M%S"))
+        try:
+            order = self.broker.submit_stop_sell(symbol, qty, entry.stop_price, cid)
+        except Exception as exc:  # noqa: BLE001
+            self._alert("critical", f"{symbol}: {why}; re-placing it FAILED ({exc}); {qty:g} shares UNPROTECTED")
+            return
+        self._add(OrderResult(symbol, "stop", "restored", why, cid, order.id, qty, stop_price=entry.stop_price))
+        self._alert("warning", f"{symbol}: {why}; re-placed at the original price for {qty:g} shares")
 
     def wait_terminal(self, order_id: str, timeout: float) -> OrderSnapshot:
         deadline = self._monotonic() + timeout

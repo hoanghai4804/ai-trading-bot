@@ -24,7 +24,7 @@ sizing, risk checks); Claude only reads compact summaries, searches news and wri
 
 ## Persistent state (cloud runs)
 Committed and pushed to `main` after every run: `state/HALT.lock`, `state/equity_history.csv`,
-`state/last_run.json`, `memory/`, `reports/`, `runs/`.
+`state/last_run.json`, `state/stops.json`, `memory/`, `reports/`, `runs/`.
 Never committed: `state/run.lock`, `data/cache/`, `logs/`, `.env`, `.venv`.
 
 ## Git workflow
@@ -47,8 +47,15 @@ py -3.11 -m venv .venv
 ## Key decisions
 - Watchlist: AAPL MSFT NVDA AMZN GOOGL META JPM XOM JNJ PG SPY (multi-sector so the correlation check matters).
 - Buy: MA20 crossed above MA50 within last 5 sessions and still above. Exit: MA20 < MA50.
-- Reference price = latest trade at order time (backtest: open). Stop = ref − 2×ATR(14), fixed.
-  Skip if |ref/Friday close − 1| > 3% or stop ≥ ref.
+- Reference price = latest IEX trade at order time (backtest: open), older than `data.max_price_age_min`
+  (5) → no_reference_price. Stop = ref − 2×ATR(14), fixed. Skip if |ref/last RAW (unadjusted) close − 1| > 3%
+  or stop ≥ ref.
+- Original stop of each position lives in `state/stops.json`; a held position without an open stop gets
+  exactly that stop back (+ alert). Stops are NEVER moved.
+- Buy-signal window = sessions since `last_trading_as_of` in `state/last_run.json` (last EXECUTE run with the
+  market open), clamped to [5, `schedule.max_signal_window_sessions`=15]; catches crosses after a holiday run.
+- `run` / `test-order` are DRY-RUN unless `--execute`; the first output line always states the mode.
+  `test-order` is manual only, never part of the weekly run.
 - Size = min(1% equity / (ref − stop), 5% equity / ref), capped by cash × (1 − cash_buffer_pct);
   same-run sell proceeds are not counted. Stop rounded down to the cent.
 - Risk vetoes have reason codes (see `risk/manager.py` docstring); unknown correlation blocks, unknown

@@ -12,15 +12,18 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 4 | Strategy (MA crossover) | done | f16bc77 |
 | 5 | Risk manager + circuit breakers | done | 2c02a78 |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | done | eacb9c2 |
+| 6b | Mode line, fresh/raw ref price, stop registry, signal window | done | (this commit) |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Session 2026-10-10 (Saturday): extra risk tests (2203f5b) + phase 6 (eacb9c2) committed and pushed. Next: phase 6b.
+- Session 2026-10-10 (Saturday): extra risk tests (2203f5b) + phase 6 (eacb9c2) pushed; phase 6b written,
+  tests pass, NOT committed yet (waiting for approval).
 - **Monday 2026-10-12 after 15:30 Paris (market open)**: run `python -m tradingbot test-order --execute` once
   (1 SPY share, OTO stop, verify, close). It is the first real check that Alpaca accepts our OTO request
-  (market + GTC + stop_loss). Then `run` (dry-run) once with the market open.
+  (market + GTC + stop_loss). Then `run` (dry-run) once with the market open: reference prices must be
+  fresh (< 5 min) and the raw closes must match the last session.
 - Then: **phase 7 — Backtest**.
 - Phase 7 requirement (user): the 5% cap binds -> at most ~55% of equity invested. The backtest report must show
   average invested fraction (exposure) and compare on Sharpe and max drawdown, not only absolute return.
@@ -128,8 +131,31 @@ Plan: [docs/PLAN.md](PLAN.md).
 - 191 tests pass.
 - Open issues:
   - The OTO request shape is only unit-tested; first real acceptance check = test-order on Monday.
-  - Alpaca cancels GTC orders after 90 days: stops of positions held longer disappear. Currently only alerted
-    ("held without an open stop"); auto re-placing is a later improvement.
+  - Alpaca cancels GTC orders after 90 days: stops of positions held longer disappear. -> fixed in 6b.
   - Halt while the market is closed: HALT.lock is written but nothing is sold (critical alert, manual action).
-  - Alerts go to stderr until Discord (phase 8). decisions.json / summary / last_run.json / local equity log
-    are phase 8.
+  - Alerts go to stderr until Discord (phase 8). decisions.json / summary / local equity log are phase 8
+    (last_run.json came in 6b).
+
+### Phase 6b — hardening of execution
+1. Mode: `reporting/run_text.format_run` (used by `run`; phase 8 summary builds on it) and `test-order` print
+   `MODE: DRY-RUN ...` / `MODE: EXECUTE ...` as the FIRST line; `RunResult.to_dict()` starts with `mode`.
+2. Reference price: `LatestPrices` returns price + timestamp; `fresh_prices` drops trades older than
+   `data.max_price_age_min` (5) -> `no_reference_price` with the age in the detail (exactly 5 min still ok).
+   Gap check uses the last RAW close (`MarketData.get_raw_closes`, adjustment=raw, not cached); missing raw
+   close or one from another session -> new veto `no_raw_close`. The backtest passes no raw closes (uses bars).
+   test-order requires a fresh price with `--execute` (dry-run accepts a stale one and says so).
+3. `execution/stop_registry.py` -> `state/stops.json` (committed): original stop recorded when a buy is sent.
+   Every run (end of execution): held position without an open stop -> re-place exactly the original stop
+   (+ warning); open stop at another price -> warning, left unchanged; no recorded stop -> critical alert, no
+   stop invented; dry-run or market closed -> nothing sent (+ warning). A failed sell restores the ORIGINAL
+   stop. Entries of closed positions are dropped (kept while a buy is pending). Dry-run never writes the file.
+4. Signal window: `state/last_run.json` (EXECUTE runs only) keeps `last_trading_as_of` (advances only when the
+   market was open). Window = sessions after it up to as_of, clamped to [cross_lookback_sessions=5,
+   `schedule.max_signal_window_sessions`=15]. Test: Monday 2026-10-05 holiday -> the 10-12 run uses 10 sessions
+   and catches the 10-01 cross; with a normal Monday the window is 5 and the cross is (correctly) not re-proposed.
+- Mutation check: 24 mutants over the 4 points; 3 survived at first (max age in hours instead of minutes,
+  pipeline not passing raw closes, dry-run saving the stop file) -> tests added -> 24/24 caught.
+- Real dry-run 2026-10-10 (market closed): mode line OK; SPY latest trade 836 min old flagged; raw and adjusted
+  closes of 10-09 identical (no corporate action since).
+- Open: if the price is already below the original stop, re-placing the stop will be rejected by Alpaca ->
+  critical alert only (no automatic market sell).

@@ -26,8 +26,8 @@ class FakeSource:
         self.calls = []
         self.deny_feeds = set(deny_feeds)
 
-    def fetch(self, symbols, start, end, feed):
-        self.calls.append((tuple(symbols), start, end, feed))
+    def fetch(self, symbols, start, end, feed, adjustment="all"):
+        self.calls.append((tuple(symbols), start, end, feed, adjustment))
         if feed in self.deny_feeds:
             raise FeedPermissionError(feed)
         # Deliberately returns one bar AFTER `end` to prove get_bars cuts it.
@@ -90,7 +90,7 @@ def test_falls_back_to_iex_when_sip_not_permitted(make_md):
 
 def test_missing_symbol_raises(make_md):
     class EmptySource(FakeSource):
-        def fetch(self, symbols, start, end, feed):
+        def fetch(self, symbols, start, end, feed, adjustment="all"):
             return {}
     with pytest.raises(ValueError, match="no bars"):
         make_md(EmptySource()).get_bars(["ZZZZ"], start=date(2026, 1, 1), as_of=date(2026, 10, 9))
@@ -128,3 +128,27 @@ def test_cli_data_command_prints_every_symbol(monkeypatch, tmp_path, capsys):
     out = capsys.readouterr().out
     assert all(s in out for s in load_config().watchlist)
     assert "2026-10-12" not in out  # FakeSource returns bars after as_of; they must be cut
+
+
+# --- reference prices (phase 6b) ---------------------------------------------------------
+
+def test_raw_closes_use_unadjusted_bars_and_stop_at_as_of(make_md):
+    source = FakeSource()
+    closes = make_md(source).get_raw_closes(["AAPL", "SPY"], as_of=date(2026, 10, 9))
+    assert {c[4] for c in source.calls} == {"raw"}
+    assert {s: d for s, (d, _) in closes.items()} == {"AAPL": date(2026, 10, 9), "SPY": date(2026, 10, 9)}
+
+
+def test_fresh_prices_rejects_old_or_missing_trades():
+    from datetime import datetime, timedelta, timezone
+
+    from tradingbot.data.market_data import LatestTrade, fresh_prices
+
+    now = datetime(2026, 10, 12, 15, 7, tzinfo=timezone.utc)
+    trades = {"AAPL": LatestTrade(250.0, now - timedelta(minutes=5)),             # exactly the limit: ok
+              "MSFT": LatestTrade(400.0, now - timedelta(minutes=5, seconds=1)),  # just too old
+              "NVDA": LatestTrade(180.0, now - timedelta(days=3))}                # Friday's last trade
+    prices, notes = fresh_prices(trades, ["AAPL", "MSFT", "NVDA", "JPM"], now, timedelta(minutes=5))
+    assert prices == {"AAPL": 250.0}
+    assert set(notes) == {"MSFT", "NVDA", "JPM"}
+    assert "min old (max 5 min)" in notes["NVDA"] and notes["JPM"] == "no latest trade"

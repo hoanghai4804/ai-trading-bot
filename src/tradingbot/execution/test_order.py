@@ -12,10 +12,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import ROUND_DOWN, Decimal
 
 from tradingbot.config import Config
+from tradingbot.data.market_data import LatestTrade, fresh_prices
 from tradingbot.execution.executor import Alert, Executor, stderr_alert
 from tradingbot.execution.orders import is_stop_sell, open_stop_sells
 from tradingbot.pipeline import WeeklyBroker
@@ -42,7 +43,7 @@ def check_order_id(prefix: str, now: datetime, symbol: str, kind: str) -> str:
 def run_test_order(
     cfg: Config,
     broker: WeeklyBroker,
-    latest_prices: Callable[[Iterable[str]], Mapping[str, float]],
+    latest_prices: Callable[[Iterable[str]], Mapping[str, LatestTrade]],
     now: datetime,
     dry_run: bool = True,
     alert: Alert = stderr_alert,
@@ -62,8 +63,15 @@ def run_test_order(
     pending = [o for o in broker.get_orders(status="open", nested=False, symbols=[symbol]) if o.symbol == symbol]
     if not report.add(f"no open {symbol} orders", not pending, f"{len(pending)} open"):
         return report
-    ref = latest_prices([symbol]).get(symbol)
-    if not report.add("latest price", ref is not None and ref > 0, f"{ref}"):
+    fresh, notes = fresh_prices(latest_prices([symbol]), [symbol], now,
+                                timedelta(minutes=cfg.data.max_price_age_min))
+    ref = fresh.get(symbol)
+    if ref is None and dry_run:   # stale price is expected when the market is closed; plan only
+        trade = latest_prices([symbol]).get(symbol)
+        ref = trade.price if trade else None
+    if not report.add("fresh latest price", ref is not None and (symbol in fresh or dry_run),
+                      f"{fresh[symbol]}" if symbol in fresh
+                      else f"{notes.get(symbol, '')} - accepted in dry-run only"):
         return report
     stop = float(Decimal(repr(ref * (1 - ex.test_order_stop_pct))).quantize(Decimal("0.01"), rounding=ROUND_DOWN))
     buy_id = check_order_id(ex.order_id_prefix, now, symbol, "buy")

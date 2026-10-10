@@ -16,7 +16,7 @@ otherwise the full range is fetched again.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
@@ -36,7 +36,8 @@ _RECENT_DATA_MARGIN = timedelta(minutes=16)
 
 
 class BarsSource(Protocol):
-    def fetch(self, symbols: list[str], start: date, end: date, feed: str) -> dict[str, pd.DataFrame]:
+    def fetch(self, symbols: list[str], start: date, end: date, feed: str,
+              adjustment: str = "all") -> dict[str, pd.DataFrame]:
         """Return {symbol: OHLCV frame indexed by New York date}, inclusive of start..end."""
 
 
@@ -80,7 +81,8 @@ class AlpacaBarsSource:
         self._client_factory = client_factory
         self._client: object | None = None
 
-    def fetch(self, symbols: list[str], start: date, end: date, feed: str) -> dict[str, pd.DataFrame]:
+    def fetch(self, symbols: list[str], start: date, end: date, feed: str,
+              adjustment: str = "all") -> dict[str, pd.DataFrame]:
         from alpaca.common.exceptions import APIError
         from alpaca.data.enums import Adjustment, DataFeed
         from alpaca.data.requests import StockBarsRequest
@@ -96,7 +98,7 @@ class AlpacaBarsSource:
             timeframe=TimeFrame.Day,
             start=start_dt,
             end=end_dt,
-            adjustment=Adjustment.ALL,
+            adjustment=Adjustment(adjustment),
             feed=DataFeed(feed),
         )
         try:
@@ -121,16 +123,45 @@ def default_alpaca_source() -> AlpacaBarsSource:
     return AlpacaBarsSource(_data_client_factory)
 
 
+@dataclass(frozen=True)
+class LatestTrade:
+    price: float
+    timestamp: datetime   # timezone-aware (UTC)
+
+
+def fresh_prices(trades: Mapping[str, LatestTrade], symbols: Iterable[str], now: datetime,
+                 max_age: timedelta) -> tuple[dict[str, float], dict[str, str]]:
+    """Split latest trades into usable reference prices and reasons why the others are not usable."""
+    prices: dict[str, float] = {}
+    notes: dict[str, str] = {}
+    for symbol in sorted(set(symbols)):
+        trade = trades.get(symbol)
+        if trade is None:
+            notes[symbol] = "no latest trade"
+            continue
+        age = now - trade.timestamp
+        if age > max_age:
+            notes[symbol] = (f"latest trade {trade.price:.2f} at {trade.timestamp.astimezone(timezone.utc):%Y-%m-%d %H:%M}"
+                             f" UTC is {age.total_seconds() / 60:.0f} min old (max {max_age.total_seconds() / 60:g} min)")
+            continue
+        prices[symbol] = trade.price
+    return prices, notes
+
+
 class LatestPrices:
-    """Reference prices = latest trade per symbol (taken at order time, never used for signals)."""
+    """Reference prices = latest trade per symbol (taken at order time, never used for signals).
+
+    The caller must check `timestamp`: on IEX the last trade can be old (market closed,
+    thin trading), and an old price is not a reference price.
+    """
 
     def __init__(self, feed: str, client_factory: Callable[[], object] = _data_client_factory) -> None:
         self.feed = feed
         self._client_factory = client_factory
         self._client: object | None = None
 
-    def get(self, symbols: Iterable[str]) -> dict[str, float]:
-        """{symbol: price}; symbols without a valid trade are left out (callers treat them as unknown)."""
+    def get(self, symbols: Iterable[str]) -> dict[str, LatestTrade]:
+        """{symbol: trade}; symbols without a valid trade are left out (callers treat them as unknown)."""
         from alpaca.data.enums import DataFeed
         from alpaca.data.requests import StockLatestTradeRequest
 
@@ -141,7 +172,8 @@ class LatestPrices:
             self._client = self._client_factory()
         trades = self._client.get_stock_latest_trade(  # type: ignore[attr-defined]
             StockLatestTradeRequest(symbol_or_symbols=symbols, feed=DataFeed(self.feed)))
-        return {s: float(t.price) for s, t in trades.items() if t is not None and t.price and t.price > 0}
+        return {s: LatestTrade(float(t.price), t.timestamp) for s, t in trades.items()
+                if t is not None and t.price and t.price > 0 and t.timestamp is not None}
 
 
 @dataclass
@@ -183,13 +215,32 @@ class MarketData:
                        "end": end.isoformat(), "feed": feed}
         frame.to_parquet(self._cache_path(symbol))
 
-    def _fetch(self, symbols: list[str], start: date, end: date) -> tuple[dict[str, pd.DataFrame], str]:
+    def _fetch(self, symbols: list[str], start: date, end: date,
+               adjustment: str = "all") -> tuple[dict[str, pd.DataFrame], str]:
         try:
-            return self.source.fetch(symbols, start, end, self.config.feed), self.config.feed
+            return self.source.fetch(symbols, start, end, self.config.feed, adjustment), self.config.feed
         except FeedPermissionError:
             fallback = self.config.fallback_feed
             log.warning("feed %s not permitted, falling back to %s", self.config.feed, fallback)
-            return self.source.fetch(symbols, start, end, fallback), fallback
+            return self.source.fetch(symbols, start, end, fallback, adjustment), fallback
+
+    def get_raw_closes(self, symbols: Iterable[str], as_of: date) -> dict[str, tuple[date, float]]:
+        """Last UNADJUSTED close on/before `as_of`: {symbol: (session date, close)}. Not cached.
+
+        The live reference price is a raw trade, so the gap check compares it with a raw
+        close; adjusted closes can differ when a dividend/split goes ex after `as_of`.
+        """
+        symbols = list(dict.fromkeys(symbols))
+        if not symbols:
+            return {}
+        fetched, _ = self._fetch(symbols, as_of - timedelta(days=14), as_of, adjustment="raw")
+        out = {}
+        for symbol in symbols:
+            frame = fetched.get(symbol)
+            frame = cut_as_of(frame, as_of) if frame is not None else None
+            if frame is not None and not frame.empty:
+                out[symbol] = (frame.index[-1].date(), float(frame["close"].iloc[-1]))
+        return out
 
     def get_bars(
         self, symbols: Iterable[str], start: date, as_of: date | None = None

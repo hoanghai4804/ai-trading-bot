@@ -12,9 +12,12 @@ Buy checks, in order (the first failure is the reported reason):
  2. not_in_watchlist
  3. already_held / duplicate
  4. weekly_limit       new positions this calendar week (from order history) + approved now
- 5. no_reference_price
+ 5. no_reference_price                  missing, invalid or stale latest trade (`ref_notes` says why)
  6. no_data / atr_unavailable
- 7. gap_too_large / invalid_stop
+ 7. no_raw_close / gap_too_large / invalid_stop
+                                         live runs compare the raw trade with the RAW close of the
+                                         last session (`raw_closes`); the backtest passes none and
+                                         uses the bars' close
  8. correlation / correlation_unknown   vs held positions not being sold now, and buys
                                          approved earlier in this run
  9. insufficient_cash / size_zero
@@ -118,14 +121,21 @@ class RiskManager:
         bars: Mapping[str, pd.DataFrame],
         ref_prices: Mapping[str, float],
         breakers: BreakerStatus,
+        raw_closes: Mapping[str, tuple[date, float]] | None = None,
+        ref_notes: Mapping[str, str] | None = None,
     ) -> RiskDecision:
-        """Apply every rule; signals are processed in the order given (strategy priority)."""
+        """Apply every rule; signals are processed in the order given (strategy priority).
+
+        raw_closes: {symbol: (session date, unadjusted close)} for the gap check (live runs).
+        ref_notes: why a symbol has no reference price (e.g. stale trade), for the veto detail.
+        """
         signals = list(signals)
         decision = RiskDecision(as_of=as_of, breakers=breakers)
         self._review_sells(signals, account, ref_prices, decision)
         selling = {o.symbol for o in decision.approved}
         for sig in (s for s in signals if s.action == "buy"):
-            blocked = self._review_buy(sig, as_of, account, bars, ref_prices, breakers, selling, decision)
+            blocked = self._review_buy(sig, as_of, account, bars, ref_prices, breakers, selling, decision,
+                                       raw_closes, ref_notes or {})
             if blocked is not None:
                 decision.blocked.append(blocked)
         return decision
@@ -163,6 +173,8 @@ class RiskManager:
         breakers: BreakerStatus,
         selling: set[str],
         decision: RiskDecision,
+        raw_closes: Mapping[str, tuple[date, float]] | None,
+        ref_notes: Mapping[str, str],
     ) -> BlockedOrder | None:
         cfg = self.cfg
         symbol = sig.symbol
@@ -188,7 +200,7 @@ class RiskManager:
 
         ref = ref_prices.get(symbol)
         if ref is None or not np.isfinite(ref) or ref <= 0:
-            return block("no_reference_price", "no valid latest price")
+            return block("no_reference_price", ref_notes.get(symbol, "no valid latest price"))
         frame = cut_as_of(bars[symbol], as_of) if symbol in bars else None
         if frame is None or frame.empty:
             return block("no_data", f"no bars up to {as_of}")
@@ -196,6 +208,13 @@ class RiskManager:
         if not np.isfinite(atr_value) or atr_value <= 0:
             return block("atr_unavailable", f"ATR({cfg.atr_period}) not available at {as_of}")
         last_close = float(frame["close"].iloc[-1])
+        if raw_closes is not None:
+            last_session = frame.index[-1].date()
+            raw = raw_closes.get(symbol)
+            if raw is None or raw[0] != last_session or not np.isfinite(raw[1]) or raw[1] <= 0:
+                return block("no_raw_close", f"no unadjusted close for the last session {last_session} "
+                                             f"(got {raw})")
+            last_close = raw[1]
         stop = compute_stop(ref, atr_value, cfg.atr_stop_multiple)
         check = check_entry_price(ref, last_close, stop, cfg.max_gap_pct)
         if not check.ok:

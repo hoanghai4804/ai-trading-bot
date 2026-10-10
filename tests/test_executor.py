@@ -1,4 +1,6 @@
+import tempfile
 from datetime import date
+from pathlib import Path
 
 import pytest
 from fake_broker import FakeBroker
@@ -31,6 +33,7 @@ def decision(*orders, breakers=OK):
 
 def run(fb, *orders, dry_run=False, market_open=True, breakers=OK, state_dir=None, alerts=None):
     sink = (lambda level, msg: alerts.append((level, msg))) if alerts is not None else (lambda *a: None)
+    state_dir = state_dir or Path(tempfile.mkdtemp())
     ex = Executor(fb, CFG, TODAY, dry_run=dry_run, alert=sink, state_dir=state_dir, sleep=fb.sleep,
                   monotonic=fb.monotonic)
     return ex.execute(decision(*orders, breakers=breakers), market_open)
@@ -221,8 +224,10 @@ def test_halt_with_market_closed_writes_lock_and_warns_positions_not_sold(tmp_pa
     assert any("NOT liquidated" in msg for _, msg in alerts)
 
 
-def test_position_without_open_stop_is_alerted():
+def test_position_without_open_stop_and_without_original_stop_is_critical():
     fb = FakeBroker(positions={"JNJ": 4})
     alerts = []
     run(fb, alerts=alerts)
-    assert alerts == [("warning", "JNJ: 4 shares held without an open stop order")]
+    assert fb.calls == []          # no stop is invented
+    assert alerts == [("critical", "JNJ: 4 shares held without an open stop and no original stop recorded; "
+                                   "UNPROTECTED")]

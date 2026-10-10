@@ -3,6 +3,7 @@ from functools import partial
 from fake_broker import NOW, FakeBroker
 
 from tradingbot.config import load_config
+from tradingbot.data.market_data import LatestTrade
 from tradingbot.execution.executor import Executor
 from tradingbot.execution.orders import is_bot_order, new_positions_this_week
 from tradingbot.execution.test_order import check_order_id, run_test_order
@@ -11,7 +12,7 @@ CFG = load_config()
 
 
 def prices(symbols):
-    return {s: 571.23 for s in symbols}
+    return {s: LatestTrade(571.23, NOW) for s in symbols}
 
 
 def run(fb, dry_run=False):

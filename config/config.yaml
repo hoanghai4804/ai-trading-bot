@@ -44,6 +44,7 @@ data:
   feed: sip                       # historical daily bars; falls back to fallback_feed on permission error
   fallback_feed: iex
   latest_price_feed: iex          # reference price = latest trade; free plans get real-time trades on IEX only
+  max_price_age_min: 5            # a latest trade older than this is no reference price (buy blocked)
   history_days: 400               # calendar days fetched for live runs (enough for MA50/ATR/corr)
   cache_dir: data/cache
 
@@ -69,6 +70,10 @@ schedule:
   runs:
     - {weekday: MON, report: full}
     # - {weekday: WED, report: brief}
+  # Buy-signal window = sessions since the last run that could trade (state/last_run.json),
+  # at least strategy.params.cross_lookback_sessions, at most this. Catches crosses missed
+  # when a run fell on a market holiday.
+  max_signal_window_sessions: 15
 
 notify:
   discord_enabled: true

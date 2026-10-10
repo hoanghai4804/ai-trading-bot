@@ -296,3 +296,34 @@ def test_halt_liquidation_keeps_strategy_reason_and_sells_each_symbol_once():
     assert [(o.symbol, o.qty, o.reason) for o in d.approved] == [
         ("BBB", 2, "drawdown breaker: liquidate"), ("CCC", 5, "MA20 < MA50")]
     assert codes(d) == {"CCC": "duplicate", "AAA": "not_held"}   # DDD qty 0 -> nothing to sell
+
+
+# --- raw close for the gap check (phase 6b) ---------------------------------------------
+
+LAST = BARS["AAA"].index[-1].date()
+
+
+def test_gap_check_uses_raw_close_when_given():
+    adj = REF["AAA"]
+    # Ref equals the ADJUSTED close but is 4% above the RAW close -> blocked.
+    d = review_raw([buy("AAA")], ref={**REF, "AAA": adj}, raw={"AAA": (LAST, adj / 1.04)})
+    assert codes(d) == {"AAA": "gap_too_large"} and "last close" in d.blocked[0].detail
+    # Ref 3.5% above the adjusted close, equal to the raw close -> allowed.
+    d = review_raw([buy("AAA")], ref={**REF, "AAA": adj * 1.035}, raw={"AAA": (LAST, adj * 1.035)})
+    assert [o.symbol for o in d.approved] == ["AAA"]
+
+
+@pytest.mark.parametrize("raw", [{}, {"AAA": (date(2026, 1, 2), 100.0)}, {"AAA": (LAST, float("nan"))}])
+def test_missing_or_wrong_session_raw_close_blocks(raw):
+    assert codes(review_raw([buy("AAA")], raw=raw)) == {"AAA": "no_raw_close"}
+
+
+def test_stale_reference_price_reason_is_reported():
+    ref = {k: v for k, v in REF.items() if k != "AAA"}
+    d = RiskManager(RISK, WATCH).review([buy("AAA")], AS_OF, account(), BARS, ref, OK,
+                                        ref_notes={"AAA": "latest trade is 4000 min old"})
+    assert [(b.code, b.detail) for b in d.blocked] == [("no_reference_price", "latest trade is 4000 min old")]
+
+
+def review_raw(signals, ref=REF, raw=None):
+    return RiskManager(RISK, WATCH).review(signals, AS_OF, account(), BARS, ref, OK, raw_closes=raw)

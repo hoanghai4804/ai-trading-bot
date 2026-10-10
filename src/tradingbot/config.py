@@ -73,6 +73,7 @@ class DataConfig(_Strict):
     feed: Literal["sip", "iex"]
     fallback_feed: Literal["sip", "iex"]
     latest_price_feed: Literal["sip", "iex"]
+    max_price_age_min: float = Field(gt=0)
     history_days: int = Field(ge=120)
     cache_dir: str
 
@@ -108,6 +109,7 @@ class ScheduledRun(_Strict):
 class ScheduleConfig(_Strict):
     timezone: str
     runs: list[ScheduledRun] = Field(min_length=1)
+    max_signal_window_sessions: int = Field(ge=1)
 
     @field_validator("runs")
     @classmethod
