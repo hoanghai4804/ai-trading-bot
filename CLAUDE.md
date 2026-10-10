@@ -39,6 +39,7 @@ py -3.11 -m venv .venv
 .venv/Scripts/python -m tradingbot config      # validate config
 .venv/Scripts/python -m tradingbot check       # paper account + market status (exit 2 = safety abort)
 .venv/Scripts/python -m tradingbot data        # watchlist indicators up to yesterday (--as-of YYYY-MM-DD)
+.venv/Scripts/python -m tradingbot signals     # strategy proposals only, no risk/orders (--as-of, --held)
 ```
 
 ## Key decisions
@@ -46,7 +47,10 @@ py -3.11 -m venv .venv
 - Buy: MA20 crossed above MA50 within last 5 sessions and still above. Exit: MA20 < MA50.
 - Reference price = latest trade at order time (backtest: open). Stop = ref − 2×ATR(14), fixed.
   Skip if |ref/Friday close − 1| > 3% or stop ≥ ref.
-- Size = min(1% equity / (ref − stop), 5% equity / ref), capped by cash.
+- Size = min(1% equity / (ref − stop), 5% equity / ref), capped by cash × (1 − cash_buffer_pct);
+  same-run sell proceeds are not counted. Stop rounded down to the cent.
+- Risk vetoes have reason codes (see `risk/manager.py` docstring); unknown correlation blocks, unknown
+  previous-week return does not.
 - Weekly limits use calendar weeks (New York) from Alpaca order history, not run counts.
 - Runs: cloud cron Monday 15:07 UTC only; `schedule.runs` in config is the guard/extension point.
 - Drawdown breaker only checked at run time; between runs only GTC stops protect positions.

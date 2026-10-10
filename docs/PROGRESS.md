@@ -10,15 +10,23 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 2 | Alpaca connection + paper guard | done | e7f7550 |
 | 3 | Data & indicators | done | 4dd1754 |
 | 4 | Strategy (MA crossover) | done | f16bc77 |
-| 5 | Risk manager + circuit breakers | todo | |
+| 5 | Risk manager + circuit breakers | done (awaiting commit) | |
 | 6 | Execution (dry-run, OTO, safe sell, idempotency) | todo | |
 | 7 | Backtest (walk-forward, costs, 3 benchmarks) | todo | |
 | 8 | Memory, reports, Discord | todo | |
 | 9 | Scheduled-run prompt + cloud routine guide | todo | |
 
 ## Next step (resume here)
-- Last session ended 2026-10-10 after phase 4 was committed and pushed.
-- Then: **phase 5 — Risk manager + circuit breakers** (docs/PLAN.md §Các giai đoạn, item 5).
+- Phase 5 implemented 2026-10-10, tests pass; waiting for user approval → commit → push.
+- Then: **phase 6 — Execution** (docs/PLAN.md §Các giai đoạn, item 6). Phase 6 must supply to `RiskManager.review`:
+  latest-trade ref prices, `new_positions_this_week` from Alpaca order history (client_order_id prefix, NY calendar
+  week), bars for watchlist ∪ held symbols, and `last_exit` for the strategy. On `decision.halt`: write HALT.lock
+  (`trip_halt`) BEFORE liquidating, cancel open orders, then sell.
+- Phase 6 requirement (user): `new_positions_this_week` counts only bot BUY orders that are filled, partially
+  filled or still pending/open; never rejected, canceled or expired. Needs tests for each status.
+- Phase 7 requirement (user): the 5% cap binds → at most ~55% of equity invested. The backtest report must show
+  average invested fraction (exposure) and compare on Sharpe and max drawdown, not only absolute return.
+  Decide on loosening the 5% cap only after phase 7.
 - Workflow reminder: tests pass → stop and summarize in Vietnamese → wait for approval → commit → push.
 
 ## Log
@@ -63,3 +71,24 @@ Plan: [docs/PLAN.md](PLAN.md).
 - Note: in a 4-session holiday week a cross from the previous Friday is still inside the 5-session window,
   so it can be proposed twice (risk manager / held check handle it).
 - 74 tests pass.
+
+### Phase 5 — Risk manager + circuit breakers
+- `risk/sizing.py` (pure): stop = ref − 2×ATR rounded down to the cent; gap check |ref/last close − 1| ≤ 3%
+  (inclusive) and 0 < stop < ref; whole-share size = min(risk 1%, cap 5%, cash), reports the binding limit.
+- `risk/circuit_breakers.py`: previous calendar week return (NY dates, Mon–Sun, last value per week; unknown →
+  does not block); drawdown vs peak of broker history + local log + current equity (≥ 10% → halt);
+  float tolerance so exact thresholds behave as specified; `trip_halt` writes HALT.lock.
+- `risk/manager.py`: `RiskManager.review(signals, as_of, account, bars, ref_prices, breakers) -> RiskDecision`.
+  Sells always allowed when held (all positions sold on halt); buys pass 9 ordered checks, each veto has a code
+  + detail; correlation partners = held positions not sold now + buys approved earlier in the run;
+  cash = cash × (1 − cash_buffer_pct) − approved notional (sell proceeds not counted). `to_dict()` is JSON-ready.
+- New config key `risk.cash_buffer_pct: 0.01`.
+- Real-data replay (2026-04-24 signals, 100k paper account): AAPL/SPY/NVDA approved, GOOGL blocked by weekly limit.
+  Note: with a 2×ATR stop the 5% position cap always binds first → real risk per trade ≈ 0.1–0.3% of equity.
+- Bugs caught by tests: empty equity history (new account) crashed date comparisons; numpy floats broke
+  stop rounding.
+- Mutation check (code changed one rule at a time, tests untouched, then restored): 5%→50%, 1%→10%, 3→30/week,
+  drawdown 10%→50%, weekly loss 5%→50%, HALT checks (assert_not_halted / buy block / liquidation) removed,
+  sell-when-not-held allowed → all caught. Corr 0.8→0.99 initially survived (fixtures only had corr 1.0 or ~0)
+  → added tests with corr ~0.9 (blocked) and ~0.7 (allowed); now caught.
+- 133 tests pass.

@@ -47,6 +47,7 @@ class RiskConfig(_Strict):
     atr_period: int = Field(ge=2)
     atr_stop_multiple: float = Field(gt=0)
     max_gap_pct: float = Fraction
+    cash_buffer_pct: float = Field(ge=0, lt=1)
     correlation: CorrelationConfig
     circuit_breakers: CircuitBreakerConfig
 

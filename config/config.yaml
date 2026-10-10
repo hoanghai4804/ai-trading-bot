@@ -22,6 +22,7 @@ risk:
   atr_period: 14
   atr_stop_multiple: 2.0          # stop = reference price - 2 x ATR
   max_gap_pct: 0.03               # skip entry if reference price moved >3% vs last Friday close
+  cash_buffer_pct: 0.01           # keep 1% of cash unused so market fills above ref never overdraw
   correlation:
     lookback_days: 60
     max_corr: 0.8                 # block a new entry too similar to an existing/approved one
