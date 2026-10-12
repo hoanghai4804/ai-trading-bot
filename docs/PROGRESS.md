@@ -23,10 +23,16 @@ Plan: [docs/PLAN.md](PLAN.md).
 - 2026-10-12: `test-order --execute` **RESULT PASS** (see Log, "Acceptance"); Alpaca dashboard checked by the
   user: matches. Cloud routine ran (commits 1bab2b1 on 10-11, 7b6064e = scheduled DRY-RUN full on 10-12,
   reported successful by the user) -> the local `run` dry-run was dropped.
+- 2026-10-12 (user decision): `TRADINGBOT_MODE=execute` set in the cloud environment, effective from the
+  scheduled run of Monday **2026-10-19**. The 1-2 week DRY-RUN period was shortened to the single scheduled
+  run of 10-12 (transcript checked clean by the user). Reasons: paper account (virtual money), test-order PASS
+  and dashboard matched. Noted in `docs/ROUTINE_SETUP.md` section 5.3.
 - Remaining steps, in order:
-  1. Scheduled cloud DRY-RUNs for at least 1-2 weeks without error.
-  2. test-order passed (2026-10-12); only once step 1 is clean: set `TRADINGBOT_MODE=execute`.
-  3. Then: strategy research (MA20/50 has no edge vs the random benchmark).
+  1. 2026-10-19 = first EXECUTE run: check `MODE: EXECUTE` first line, Alpaca orders vs
+     `runs/2026-10-19/decisions.json`, stops on Alpaca vs `state/stops.json`, `state/last_run.json` and
+     `state/execution_quality.csv` committed, Discord message, no unexpected alert. Problem -> remove
+     `TRADINGBOT_MODE` (back to DRY-RUN, ROUTINE_SETUP section 6).
+  2. Then: strategy research (MA20/50 has no edge vs the random benchmark).
 - Workflow reminder: tests pass -> stop and summarize in Vietnamese -> wait for approval -> commit -> push.
 
 ## Log

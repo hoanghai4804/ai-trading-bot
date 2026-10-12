@@ -173,6 +173,13 @@ Thiếu một trong hai → KHÔNG đặt `TRADINGBOT_MODE`.
 Đủ cả hai: environment `tradingbot` → **Edit** → thêm `TRADINGBOT_MODE=execute` → **Save changes**. Áp dụng
 từ phiên mới tiếp theo. Báo cáo kế tiếp phải có dòng đầu `MODE: EXECUTE`, không còn cảnh báo DRY-RUN.
 
+> **Ghi chú (2026-10-12) — quyết định của người dùng:** `TRADINGBOT_MODE=execute` đã được đặt trong environment
+> `tradingbot` ngày 12/10, có hiệu lực từ lần chạy thứ Hai **19/10**. Điều kiện 2 được rút ngắn: chỉ có
+> **1** lần DRY-RUN cloud theo lịch (12/10, transcript đã được người dùng kiểm tra là sạch) thay vì 1–2 tuần.
+> Lý do: tài khoản paper (tiền ảo), `test-order --execute` PASS và dashboard Alpaca khớp (12/10).
+> Lần 19/10 cần xem kỹ: dòng đầu `MODE: EXECUTE`, lệnh trên dashboard khớp `runs/2026-10-19/decisions.json`,
+> `state/stops.json` và `state/last_run.json` được commit, không cảnh báo lạ. Có vấn đề → xóa biến (mục 6).
+
 ## 6. Tạm dừng, dừng khẩn cấp, HALT.lock
 - **Tạm dừng lịch**: trang routine → công tắc on/off ở đầu trang. Cấu hình được giữ nguyên.
 - **Về DRY-RUN ngay** (vẫn chạy, không gửi lệnh): xóa biến `TRADINGBOT_MODE` khỏi environment.
