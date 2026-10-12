@@ -1,0 +1,12 @@
+date,symbol,score,confidence,no_news,n_sources,reason,sources,ref_close,ref_close_date,recorded_at
+2026-10-12,AAPL,0,0,true,0,No symbol-specific news found.,,336.6400,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,AMZN,0,0,true,0,No symbol-specific news found.,,262.4300,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,GOOGL,0,0,true,0,No symbol-specific news found.,,351.6600,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,JNJ,0,0,true,0,No symbol-specific news found.,,261.4400,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,JPM,0.1,0.3,false,1,"Reports Q3 earnings Tue Oct 13 before open; consensus EPS about 5.90, expected to rise about 16%.",https://www.kitco.com/news/off-the-wire/2026-10-09/wall-st-week-ahead-bank-earnings-cpi-headline-busy-markets-week-sp-500,332.9900,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,META,0,0,true,0,No symbol-specific news found.,,718.6700,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,MSFT,0,0,true,0,No symbol-specific news found.,,535.0700,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,NVDA,0,0,true,0,No symbol-specific news found.,,229.2800,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,PG,0,0,true,0,No symbol-specific news found.,,151.2300,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,SPY,0.1,0.3,false,1,S&P 500 near record highs; busy week with bank earnings and Wednesday CPI.,https://www.kitco.com/news/off-the-wire/2026-10-09/wall-st-week-ahead-bank-earnings-cpi-headline-busy-markets-week-sp-500,778.5700,2026-10-09,2026-10-12T15:15:01+00:00
+2026-10-12,XOM,0,0,true,0,No symbol-specific news found.,,168.9400,2026-10-09,2026-10-12T15:15:01+00:00

@@ -1,0 +1,13 @@
+{"date": "2026-10-12", "web_searches": 2, "items": [
+{"symbol": "AAPL", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "MSFT", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "NVDA", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "AMZN", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "GOOGL", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "META", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "JPM", "score": 0.1, "confidence": 0.3, "reason": "Reports Q3 earnings Tue Oct 13 before open; consensus EPS about 5.90, expected to rise about 16%.", "no_news": false, "n_sources": 1, "sources": ["https://www.kitco.com/news/off-the-wire/2026-10-09/wall-st-week-ahead-bank-earnings-cpi-headline-busy-markets-week-sp-500"]},
+{"symbol": "XOM", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "JNJ", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "PG", "score": 0.0, "confidence": 0.0, "reason": "No symbol-specific news found.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "SPY", "score": 0.1, "confidence": 0.3, "reason": "S&P 500 near record highs; busy week with bank earnings and Wednesday CPI.", "no_news": false, "n_sources": 1, "sources": ["https://www.kitco.com/news/off-the-wire/2026-10-09/wall-st-week-ahead-bank-earnings-cpi-headline-busy-markets-week-sp-500"]}
+]}

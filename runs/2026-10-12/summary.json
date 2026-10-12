@@ -1,0 +1,89 @@
+{
+  "mode": "DRY-RUN",
+  "status": "ok",
+  "report_mode": "full",
+  "scheduled": true,
+  "today": "2026-10-12",
+  "as_of": "2026-10-11",
+  "market_open": true,
+  "signal_window_sessions": 5,
+  "account": {
+    "equity": 100000.0,
+    "cash_before": 100000.0,
+    "cash": 100000.0,
+    "positions": 0,
+    "new_positions_this_week": 0
+  },
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 778.2
+  },
+  "performance": {
+    "since_last_run": null,
+    "since_start": null
+  },
+  "breakers": {
+    "halt": false,
+    "block_new_entries": false,
+    "reasons": [],
+    "previous_week_return": null,
+    "drawdown": 0.0,
+    "peak_equity": 100000.0,
+    "current_equity": 100000.0
+  },
+  "positions": [],
+  "signals": [],
+  "approved": [],
+  "blocked": [],
+  "orders": [],
+  "orders_sent": 0,
+  "stop_fills": [],
+  "execution_quality": {
+    "new_fills": 0,
+    "this_run": {
+      "market": {
+        "n": 0,
+        "mean_bps": null
+      },
+      "stop": {
+        "n": 0,
+        "mean_bps": null
+      }
+    },
+    "all_time": {
+      "market": {
+        "n": 0,
+        "mean_bps": null
+      },
+      "stop": {
+        "n": 0,
+        "mean_bps": null
+      }
+    },
+    "backtest_assumed_bps": 5.0
+  },
+  "shadow_check": {
+    "match": true,
+    "detail": "OK (live == backtest path: no order)"
+  },
+  "alerts": [],
+  "next_steps": {
+    "report_path": "reports/weekly/2026-10-12.md",
+    "template": "prompts/templates/report_full.md",
+    "sentiment_file": "runs/2026-10-12/sentiment.json",
+    "sentiment_symbols": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMZN",
+      "GOOGL",
+      "META",
+      "JPM",
+      "XOM",
+      "JNJ",
+      "PG",
+      "SPY"
+    ],
+    "max_web_searches": 4
+  }
+}

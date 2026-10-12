@@ -1,0 +1,55 @@
+{
+  "mode": "DRY-RUN",
+  "signal_window_sessions": 5,
+  "today": "2026-10-12",
+  "as_of": "2026-10-11",
+  "dry_run": true,
+  "market_open": true,
+  "equity": 100000.0,
+  "cash": 100000.0,
+  "positions": {},
+  "new_positions_this_week": 0,
+  "stop_fills": [],
+  "signals": [],
+  "decision": {
+    "as_of": "2026-10-11",
+    "halt": false,
+    "breakers": {
+      "halt": false,
+      "block_new_entries": false,
+      "reasons": [],
+      "previous_week_return": null,
+      "drawdown": 0.0,
+      "peak_equity": 100000.0,
+      "current_equity": 100000.0
+    },
+    "approved": [],
+    "blocked": []
+  },
+  "execution": {
+    "dry_run": true,
+    "market_open": true,
+    "orders_sent": 0,
+    "results": [],
+    "alerts": []
+  },
+  "warnings": [],
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 778.2
+  },
+  "performance": {
+    "since_last_run": null,
+    "since_start": null
+  },
+  "order_refs": {},
+  "shadow_check": {
+    "match": true,
+    "live": [],
+    "shadow": [],
+    "error": null,
+    "only_live": [],
+    "only_shadow": []
+  },
+  "fills": []
+}
