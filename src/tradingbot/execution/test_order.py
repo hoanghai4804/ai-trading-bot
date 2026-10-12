@@ -104,7 +104,8 @@ def run_test_order(
 
     sell = executor.safe_sell(symbol, check_order_id(ex.order_id_prefix, now, symbol, "sell"))
     report.add("safe sell (cancel stop -> market sell)", sell.status == "filled",
-               f"{sell.status} {sell.detail} {sell.qty} @ {sell.fill_price}".strip())
+               f"order {sell.order_id}, " + " ".join(
+                   str(x) for x in (sell.status, sell.detail, sell.qty, "@", sell.fill_price) if x not in ("", None)))
     left = sum(p.qty for p in broker.get_positions() if p.symbol == symbol)
     still_open = [o for o in broker.get_orders(status="open", nested=False, symbols=[symbol]) if o.symbol == symbol]
     report.add("position closed, no open orders", left == 0 and not still_open,

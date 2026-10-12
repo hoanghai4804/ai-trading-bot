@@ -33,6 +33,9 @@ def test_full_cycle_buys_checks_stop_and_closes():
     assert buy[4] == "tbtest-20261012-150700-SPY-buy"
     assert cancel[0] == "cancel" and sell[:3] == ("sell", "SPY", 1)
     assert fb.positions == {} and fb.get_orders(status="open") == []
+    sell_detail = next(d for name, _, d in report.steps if name.startswith("safe sell"))
+    sell_order = next(o for o in fb.get_orders() if o.side == "sell" and o.type == "market")
+    assert sell_detail.startswith(f"order {sell_order.id}, filled 1")
 
 
 def test_test_orders_are_not_bot_orders():

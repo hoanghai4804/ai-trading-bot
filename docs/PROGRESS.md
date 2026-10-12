@@ -19,19 +19,14 @@ Plan: [docs/PLAN.md](PLAN.md).
 | 9 | Scheduled-run prompt + cloud routine guide + README | done | (this commit) |
 
 ## Next step (resume here)
-- Phase 9 committed 2026-10-10 (393 tests pass). `test-order --execute` has NOT run yet (market closed).
+- Phase 9 committed 2026-10-10 (393 tests pass).
+- 2026-10-12: `test-order --execute` **RESULT PASS** (see Log, "Acceptance"); Alpaca dashboard checked by the
+  user: matches. Cloud routine ran (commits 1bab2b1 on 10-11, 7b6064e = scheduled DRY-RUN full on 10-12,
+  reported successful by the user) -> the local `run` dry-run was dropped.
 - Remaining steps, in order:
-  1. **Monday 2026-10-12 after 15:30 Paris (market open)**: `test-order --execute` once on the local machine
-     (expect `RESULT PASS`), then `run` (dry-run) once. Record the result here.
-  2. Cloud setup per `docs/ROUTINE_SETUP.md`: GitHub App on the repo, environment `tradingbot` (Custom network,
-     Alpaca network secret + placeholder env vars, DISCORD_WEBHOOK_URL, BASH_DEFAULT_TIMEOUT_MS, setup script),
-     routine (Sonnet, Monday 15:07 UTC, no connectors). TRADINGBOT_MODE NOT set.
-  3. Run now with `force-dry-run-full`: check transcript (`account=PA...`, no 403, no secret read), the
-     commit on GitHub, the Discord message. If the network secret fails (401/403): fallback env vars.
-     First real check of `cloud_setup.sh` on Linux.
-  4. Scheduled cloud DRY-RUNs for at least 1-2 weeks without error.
-  5. Only if step 1 passed AND step 4 is clean: set `TRADINGBOT_MODE=execute`.
-  6. Then: strategy research (MA20/50 has no edge vs the random benchmark).
+  1. Scheduled cloud DRY-RUNs for at least 1-2 weeks without error.
+  2. test-order passed (2026-10-12); only once step 1 is clean: set `TRADINGBOT_MODE=execute`.
+  3. Then: strategy research (MA20/50 has no edge vs the random benchmark).
 - Workflow reminder: tests pass -> stop and summarize in Vietnamese -> wait for approval -> commit -> push.
 
 ## Log
@@ -290,3 +285,15 @@ Plan: [docs/PLAN.md](PLAN.md).
 - Correction (user, 2026-10-10): `test-order --execute` has NOT run yet; it is a precondition for EXECUTE.
 - Open: Linux path of `cloud_setup.sh` and the network-secret behaviour are only testable with the first
   cloud Run now.
+
+### Acceptance — test-order --execute (2026-10-12, local, PAPER)
+- 15:28 UTC, market open, account PA******2VKZ (equity 100,000, 0 positions). `RESULT PASS`, exit 0, all
+  10 steps PASS.
+- Ref price 778.06 (fresh). OTO buy `5322762c-ef1e-41bb-9229-e87808ed9f13` filled 1 SPY @ 778.10; stop leg
+  `b3806344-a1fd-440f-b73d-306f86d35940` new @ 739.15 (ref x 0.95, rounded down). Safe sell: stop canceled,
+  market sell filled 1 @ 778.07 (sell order id not printed at that time). End: 0 positions, 0 open orders.
+- User checked the Alpaca dashboard: buy filled, stop canceled, market sell filled, no position -> matches.
+- The OTO request shape (open issue of phase 6) is now accepted by the real paper API.
+- Follow-up fixes: test-order prints the sell order id; `data/sentiment/.gitkeep` + `state/.gitkeep` so the
+  routine's folders always exist; `prompts/weekly_run.md` commit step adds only existing folders (a missing
+  pathspec made `git add` fail for every path).

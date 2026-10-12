@@ -124,7 +124,8 @@ Otherwise:
 1. `git ls-files | grep -x .env` must print nothing. If it prints anything: alert (rule 5), do NOT push, stop.
 2. `git status --short`. Any changed/untracked path outside `memory/ reports/ runs/ state/ data/sentiment/`
    -> do not add it; alert critical with the list of paths (rule 5), still commit the allowed paths.
-3. `git add -A -- memory reports runs state data/sentiment`
+3. Add only the allowed folders that exist (a missing folder makes `git add` fail for all paths):
+   `for d in memory reports runs state data/sentiment; do [ -d "$d" ] && git add -A -- "$d"; done`
 4. `git commit -m "weekly run <D> (<MODE>, <RUN|HALT|SKIP>)"` (skip if nothing staged). If git has no
    identity: `git config user.name "tradingbot routine"` and `git config user.email "routine@localhost"`
    (local repo config only), then commit again.
