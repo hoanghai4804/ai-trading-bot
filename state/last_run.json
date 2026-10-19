@@ -1,0 +1,10 @@
+{
+  "run_at": "2026-10-19T15:11:49+00:00",
+  "today": "2026-10-19",
+  "as_of": "2026-10-18",
+  "mode": "EXECUTE",
+  "market_open": true,
+  "orders_sent": 1,
+  "signal_window_sessions": 5,
+  "last_trading_as_of": "2026-10-18"
+}

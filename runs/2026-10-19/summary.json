@@ -1,0 +1,122 @@
+{
+  "mode": "EXECUTE",
+  "status": "ok",
+  "report_mode": "full",
+  "scheduled": true,
+  "today": "2026-10-19",
+  "as_of": "2026-10-18",
+  "market_open": true,
+  "signal_window_sessions": 5,
+  "account": {
+    "equity": 99999.94,
+    "cash_before": 99999.94,
+    "cash": 95156.33,
+    "positions": 1,
+    "new_positions_this_week": 0
+  },
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 768.615
+  },
+  "performance": {
+    "since_last_run": null,
+    "since_start": null
+  },
+  "breakers": {
+    "halt": false,
+    "block_new_entries": false,
+    "reasons": [],
+    "previous_week_return": -6.000000000172534e-07,
+    "drawdown": 6.000000000172534e-07,
+    "peak_equity": 100000.0,
+    "current_equity": 99999.94
+  },
+  "positions": [
+    {
+      "symbol": "GOOGL",
+      "qty": 14.0,
+      "avg_entry": 345.972143,
+      "price": 346.0,
+      "unrealized_pl": 0.389998,
+      "unrealized_plpc": 8e-05,
+      "stop": 328.11
+    }
+  ],
+  "signals": [
+    {
+      "action": "buy",
+      "symbol": "GOOGL"
+    }
+  ],
+  "approved": [
+    {
+      "side": "buy",
+      "symbol": "GOOGL",
+      "qty": 14,
+      "ref_price": 345.93,
+      "stop_price": 328.11,
+      "reason": "MA20 crossed above MA50 4 session(s) ago"
+    }
+  ],
+  "blocked": [],
+  "orders": [
+    {
+      "side": "buy",
+      "symbol": "GOOGL",
+      "status": "filled",
+      "qty": 14.0,
+      "fill_price": 345.972143,
+      "stop_price": 328.11
+    }
+  ],
+  "orders_sent": 1,
+  "stop_fills": [],
+  "execution_quality": {
+    "new_fills": 1,
+    "this_run": {
+      "market": {
+        "n": 1,
+        "mean_bps": 1.22
+      },
+      "stop": {
+        "n": 0,
+        "mean_bps": null
+      }
+    },
+    "all_time": {
+      "market": {
+        "n": 1,
+        "mean_bps": 1.22
+      },
+      "stop": {
+        "n": 0,
+        "mean_bps": null
+      }
+    },
+    "backtest_assumed_bps": 5.0
+  },
+  "shadow_check": {
+    "match": true,
+    "detail": "OK (live == backtest path: buy GOOGL)"
+  },
+  "alerts": [],
+  "next_steps": {
+    "report_path": "reports/weekly/2026-10-19.md",
+    "template": "prompts/templates/report_full.md",
+    "sentiment_file": "runs/2026-10-19/sentiment.json",
+    "sentiment_symbols": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMZN",
+      "GOOGL",
+      "META",
+      "JPM",
+      "XOM",
+      "JNJ",
+      "PG",
+      "SPY"
+    ],
+    "max_web_searches": 4
+  }
+}

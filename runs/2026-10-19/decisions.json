@@ -1,0 +1,117 @@
+{
+  "mode": "EXECUTE",
+  "signal_window_sessions": 5,
+  "today": "2026-10-19",
+  "as_of": "2026-10-18",
+  "dry_run": false,
+  "market_open": true,
+  "equity": 99999.94,
+  "cash": 99999.94,
+  "positions": {},
+  "new_positions_this_week": 0,
+  "stop_fills": [],
+  "signals": [
+    {
+      "symbol": "GOOGL",
+      "action": "buy",
+      "as_of": "2026-10-16",
+      "reason": "MA20 crossed above MA50 4 session(s) ago",
+      "cross_date": "2026-10-12",
+      "sessions_since_cross": 4,
+      "close": 340.59,
+      "fast_ma": 346.41400000000004,
+      "slow_ma": 344.492
+    }
+  ],
+  "decision": {
+    "as_of": "2026-10-18",
+    "halt": false,
+    "breakers": {
+      "halt": false,
+      "block_new_entries": false,
+      "reasons": [],
+      "previous_week_return": -6.000000000172534e-07,
+      "drawdown": 6.000000000172534e-07,
+      "peak_equity": 100000.0,
+      "current_equity": 99999.94
+    },
+    "approved": [
+      {
+        "symbol": "GOOGL",
+        "side": "buy",
+        "qty": 14,
+        "reason": "MA20 crossed above MA50 4 session(s) ago",
+        "ref_price": 345.93,
+        "stop_price": 328.11,
+        "notional": 4843.02,
+        "risk_amount": 249.4799999999999,
+        "limited_by": "position_cap"
+      }
+    ],
+    "blocked": []
+  },
+  "execution": {
+    "dry_run": false,
+    "market_open": true,
+    "orders_sent": 1,
+    "results": [
+      {
+        "symbol": "GOOGL",
+        "side": "buy",
+        "status": "filled",
+        "detail": "",
+        "client_order_id": "tb-2026-10-19-GOOGL-buy",
+        "order_id": "214f7672-3e69-434c-a444-d0931be90709",
+        "qty": 14.0,
+        "fill_price": 345.972143,
+        "stop_price": 328.11
+      }
+    ],
+    "alerts": []
+  },
+  "warnings": [],
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 768.615
+  },
+  "performance": {
+    "since_last_run": null,
+    "since_start": null
+  },
+  "order_refs": {
+    "tb-2026-10-19-GOOGL-buy": 345.93
+  },
+  "shadow_check": {
+    "match": true,
+    "live": [
+      [
+        "GOOGL",
+        "buy"
+      ]
+    ],
+    "shadow": [
+      [
+        "GOOGL",
+        "buy"
+      ]
+    ],
+    "error": null,
+    "only_live": [],
+    "only_shadow": []
+  },
+  "fills": [
+    {
+      "fill_date": "2026-10-19",
+      "order_id": "214f7672-3e69-434c-a444-d0931be90709",
+      "client_order_id": "tb-2026-10-19-GOOGL-buy",
+      "symbol": "GOOGL",
+      "side": "buy",
+      "type": "market",
+      "qty": 14.0,
+      "ref_price": 345.93,
+      "ref_source": "decision",
+      "fill_price": 345.972143,
+      "slippage_bps": 1.22
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+fill_date,order_id,client_order_id,symbol,side,type,qty,ref_price,ref_source,fill_price,slippage_bps
+2026-10-19,214f7672-3e69-434c-a444-d0931be90709,tb-2026-10-19-GOOGL-buy,GOOGL,buy,market,14.0,345.93,decision,345.972143,1.22
