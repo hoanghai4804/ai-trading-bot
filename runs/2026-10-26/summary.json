@@ -1,0 +1,104 @@
+{
+  "mode": "EXECUTE",
+  "status": "ok",
+  "report_mode": "full",
+  "scheduled": true,
+  "today": "2026-10-26",
+  "as_of": "2026-10-25",
+  "market_open": true,
+  "signal_window_sessions": 5,
+  "account": {
+    "equity": 99749.6,
+    "cash_before": 99749.6,
+    "cash": 99749.6,
+    "positions": 0,
+    "new_positions_this_week": 0
+  },
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 767.135
+  },
+  "performance": {
+    "since_last_run": {
+      "from": "2026-10-19",
+      "return": -0.0025034015020408695,
+      "benchmark_return": -0.001925541395887409
+    },
+    "since_start": {
+      "from": "2026-10-19",
+      "return": -0.0025034015020408695,
+      "benchmark_return": -0.001925541395887409
+    }
+  },
+  "breakers": {
+    "halt": false,
+    "block_new_entries": false,
+    "reasons": [],
+    "previous_week_return": -0.0025034015020408695,
+    "drawdown": 0.0025039999999999507,
+    "peak_equity": 100000.0,
+    "current_equity": 99749.6
+  },
+  "positions": [],
+  "signals": [],
+  "approved": [],
+  "blocked": [],
+  "orders": [],
+  "orders_sent": 0,
+  "stop_fills": [
+    {
+      "symbol": "GOOGL",
+      "qty": 14.0,
+      "price": 328.099286,
+      "day": "2026-10-22"
+    }
+  ],
+  "execution_quality": {
+    "new_fills": 2,
+    "this_run": {
+      "market": {
+        "n": 1,
+        "mean_bps": 1.22
+      },
+      "stop": {
+        "n": 1,
+        "mean_bps": 0.33
+      }
+    },
+    "all_time": {
+      "market": {
+        "n": 1,
+        "mean_bps": 1.22
+      },
+      "stop": {
+        "n": 1,
+        "mean_bps": 0.33
+      }
+    },
+    "backtest_assumed_bps": 5.0
+  },
+  "shadow_check": {
+    "match": true,
+    "detail": "OK (live == backtest path: no order)"
+  },
+  "alerts": [],
+  "next_steps": {
+    "report_path": "reports/weekly/2026-10-26.md",
+    "template": "prompts/templates/report_full.md",
+    "sentiment_file": "runs/2026-10-26/sentiment.json",
+    "sentiment_symbols": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMZN",
+      "GOOGL",
+      "META",
+      "JPM",
+      "XOM",
+      "JNJ",
+      "PG",
+      "SPY"
+    ],
+    "max_web_searches": 4
+  }
+}

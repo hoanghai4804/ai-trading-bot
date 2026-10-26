@@ -1,0 +1,97 @@
+{
+  "mode": "EXECUTE",
+  "signal_window_sessions": 5,
+  "today": "2026-10-26",
+  "as_of": "2026-10-25",
+  "dry_run": false,
+  "market_open": true,
+  "equity": 99749.6,
+  "cash": 99749.6,
+  "positions": {},
+  "new_positions_this_week": 0,
+  "stop_fills": [
+    {
+      "symbol": "GOOGL",
+      "qty": 14.0,
+      "price": 328.099286,
+      "day": "2026-10-22"
+    }
+  ],
+  "signals": [],
+  "decision": {
+    "as_of": "2026-10-25",
+    "halt": false,
+    "breakers": {
+      "halt": false,
+      "block_new_entries": false,
+      "reasons": [],
+      "previous_week_return": -0.0025034015020408695,
+      "drawdown": 0.0025039999999999507,
+      "peak_equity": 100000.0,
+      "current_equity": 99749.6
+    },
+    "approved": [],
+    "blocked": []
+  },
+  "execution": {
+    "dry_run": false,
+    "market_open": true,
+    "orders_sent": 0,
+    "results": [],
+    "alerts": []
+  },
+  "warnings": [],
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 767.135
+  },
+  "performance": {
+    "since_last_run": {
+      "from": "2026-10-19",
+      "return": -0.0025034015020408695,
+      "benchmark_return": -0.001925541395887409
+    },
+    "since_start": {
+      "from": "2026-10-19",
+      "return": -0.0025034015020408695,
+      "benchmark_return": -0.001925541395887409
+    }
+  },
+  "order_refs": {},
+  "shadow_check": {
+    "match": true,
+    "live": [],
+    "shadow": [],
+    "error": null,
+    "only_live": [],
+    "only_shadow": []
+  },
+  "fills": [
+    {
+      "fill_date": "2026-10-19",
+      "order_id": "214f7672-3e69-434c-a444-d0931be90709",
+      "client_order_id": "tb-2026-10-19-GOOGL-buy",
+      "symbol": "GOOGL",
+      "side": "buy",
+      "type": "market",
+      "qty": 14.0,
+      "ref_price": 345.93,
+      "ref_source": "decision",
+      "fill_price": 345.972143,
+      "slippage_bps": 1.22
+    },
+    {
+      "fill_date": "2026-10-22",
+      "order_id": "810fa38b-fa10-4716-aba4-adc21d84e1fa",
+      "client_order_id": "d62091ac-3445-4c44-8cc1-7c5e0de1bb22",
+      "symbol": "GOOGL",
+      "side": "sell",
+      "type": "stop",
+      "qty": 14.0,
+      "ref_price": 328.11,
+      "ref_source": "stop",
+      "fill_price": 328.099286,
+      "slippage_bps": 0.33
+    }
+  ]
+}
