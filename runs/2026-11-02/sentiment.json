@@ -1,0 +1,13 @@
+{"date": "2026-11-02", "web_searches": 2, "items": [
+{"symbol": "AAPL", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "MSFT", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "NVDA", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "AMZN", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "GOOGL", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "META", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "JPM", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "XOM", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "JNJ", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "PG", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []},
+{"symbol": "SPY", "score": 0.0, "confidence": 0.0, "reason": "No reliable news found in search results.", "no_news": true, "n_sources": 0, "sources": []}
+]}

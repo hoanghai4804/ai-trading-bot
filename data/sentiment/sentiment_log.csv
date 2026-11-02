@@ -32,3 +32,14 @@ date,symbol,score,confidence,no_news,n_sources,reason,sources,ref_close,ref_clos
 2026-10-26,PG,0,0,true,0,No symbol-specific news found in search results this week.,,161.0200,2026-10-23,2026-10-26T15:18:41+00:00
 2026-10-26,SPY,0,0,true,0,No symbol-specific news found in search results this week.,,759.9700,2026-10-23,2026-10-26T15:18:41+00:00
 2026-10-26,XOM,0,0,true,0,No symbol-specific news found in search results this week.,,183.2100,2026-10-23,2026-10-26T15:18:41+00:00
+2026-11-02,AAPL,0,0,true,0,No reliable news found in search results.,,344.6300,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,AMZN,0,0,true,0,No reliable news found in search results.,,240.3500,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,GOOGL,0,0,true,0,No reliable news found in search results.,,279.8400,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,JNJ,0,0,true,0,No reliable news found in search results.,,273.2000,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,JPM,0,0,true,0,No reliable news found in search results.,,337.0400,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,META,0,0,true,0,No reliable news found in search results.,,614.9900,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,MSFT,0,0,true,0,No reliable news found in search results.,,521.9100,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,NVDA,0,0,true,0,No reliable news found in search results.,,204.6400,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,PG,0,0,true,0,No reliable news found in search results.,,161.5700,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,SPY,0,0,true,0,No reliable news found in search results.,,755.7200,2026-10-30,2026-11-02T15:38:04+00:00
+2026-11-02,XOM,0,0,true,0,No reliable news found in search results.,,187.2500,2026-10-30,2026-11-02T15:38:04+00:00
