@@ -71,19 +71,30 @@ class DiscordNotifier:
         except Exception:  # noqa: BLE001 - logging must not raise either
             pass
 
-    def send(self, content: str, attachment: Path | None = None) -> bool:
-        """Post a message (and optionally one file). Returns True on success, never raises."""
+    def send(self, content: str, attachment: Path | None = None,
+             embeds: list[dict[str, Any]] | None = None) -> bool:
+        """Post a message (optionally one file and/or embeds). Returns True on success, never raises."""
         try:
-            return self._send(content, attachment)
+            return self._send(content, attachment, embeds)
         except Exception as exc:  # noqa: BLE001 - last line of defence
             self._log(f"send failed unexpectedly: {type(exc).__name__}: {exc}")
             return False
 
-    def _send(self, content: str, attachment: Path | None) -> bool:
+    def send_report(self, messages: list[dict[str, Any]]) -> bool:
+        """Send the report messages (from `build_report_messages`) in order. True only if all were sent."""
+        ok = True
+        for message in messages:
+            ok = self.send(message.get("content", ""), embeds=message.get("embeds") or None) and ok
+        return ok
+
+    def _send(self, content: str, attachment: Path | None,
+              embeds: list[dict[str, Any]] | None = None) -> bool:
         if not self.enabled:
             self._log("skipped: discord disabled or DISCORD_WEBHOOK_URL not set")
             return False
-        payload = {"content": truncate(content), "allowed_mentions": {"parse": []}}
+        payload: dict[str, Any] = {"content": truncate(content), "allowed_mentions": {"parse": []}}
+        if embeds:
+            payload["embeds"] = embeds
         file_bytes = None
         if attachment is not None:
             try:
@@ -107,6 +118,7 @@ class DiscordNotifier:
             status = int(getattr(response, "status_code", 0))
             if 200 <= status < 300:
                 self._log(f"sent ({len(payload['content'])} chars"
+                          + (f", {len(embeds)} embeds" if embeds else "")
                           + (f", attachment {attachment.name}" if file_bytes is not None else "") + ")")
                 return True
             if status == 429 and attempt < attempts:

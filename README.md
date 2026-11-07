@@ -111,7 +111,8 @@ ai-trading-bot/
 │   │   ├── execution_quality.py  # fill price vs reference -> slippage in bps (state/execution_quality.csv)
 │   │   └── shadow.py             # replays each live decision through the backtest path, alerts on mismatch
 │   ├── notify/
-│   │   └── discord.py            # Discord webhook: reports + alerts, never raises, URL never logged
+│   │   ├── discord.py            # Discord webhook: reports + alerts, never raises, URL never logged
+│   │   └── discord_report.py     # weekly report .md -> Discord embeds (readable on the phone, no download)
 │   ├── memory/
 │   │   └── compact.py            # keeps 4 weeks of journal, moves older entries to journal_archive.md
 │   ├── sentiment/

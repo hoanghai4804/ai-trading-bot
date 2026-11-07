@@ -113,7 +113,8 @@ ai-trading-bot/
 │   │   ├── execution_quality.py  # giá khớp so với giá tham chiếu -> trượt giá bps (state/execution_quality.csv)
 │   │   └── shadow.py             # chạy lại mỗi quyết định live qua đường backtest, cảnh báo nếu khác nhau
 │   ├── notify/
-│   │   └── discord.py            # webhook Discord: báo cáo + cảnh báo, không bao giờ ném lỗi, không log URL
+│   │   ├── discord.py            # webhook Discord: báo cáo + cảnh báo, không bao giờ ném lỗi, không log URL
+│   │   └── discord_report.py     # báo cáo .md -> các thẻ (embed) Discord, đọc thẳng trên điện thoại, không cần tải
 │   ├── memory/
 │   │   └── compact.py            # giữ 4 tuần nhật ký, chuyển phần cũ hơn sang journal_archive.md
 │   ├── sentiment/

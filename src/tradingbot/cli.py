@@ -189,8 +189,12 @@ def _cmd_notify_alert(args: argparse.Namespace) -> int:
 
 
 def _cmd_notify_report(args: argparse.Namespace) -> int:
-    """Send the run summary (< 2000 chars) + the report file to Discord. Never raises."""
+    """Send the weekly report to Discord as embeds (readable in the app, no download). Never raises.
+
+    No report file -> fallback: short summary text + runs/<date>/summary.md attached.
+    """
     from tradingbot.config import PROJECT_ROOT
+    from tradingbot.notify.discord_report import build_report_messages
     from tradingbot.reporting.summary import discord_message, latest_run_date, load_summary, run_dir
 
     cfg = load_config(args.config)
@@ -200,10 +204,13 @@ def _cmd_notify_report(args: argparse.Namespace) -> int:
         print("no runs/<date>/summary.json found: nothing to send", file=sys.stderr)
         return 1
     path = Path(args.path) if args.path else PROJECT_ROOT / "reports" / "weekly" / f"{day.isoformat()}.md"
-    if not path.exists():
+    if path.exists():
+        messages = build_report_messages(path.read_text(encoding="utf-8"), summary)
+        ok = _notifier(cfg, args).send_report(messages)
+    else:
         print(f"report {path} not found: attaching summary.md instead", file=sys.stderr)
         path = run_dir(day) / "summary.md"
-    ok = _notifier(cfg, args).send(discord_message(summary, path.name), path)
+        ok = _notifier(cfg, args).send(discord_message(summary, path.name), path)
     print(f"notify report {day}: " + ("sent" if ok else "NOT sent (see logs/notify.log)"))
     return 0 if ok else 1
 
@@ -319,7 +326,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.set_defaults(func=_cmd_run)
     notify = sub.add_parser("notify", help="Discord notifications")
     notify_sub = notify.add_subparsers(dest="notify_command", required=True)
-    report = notify_sub.add_parser("report", help="send the run summary + report file (.md) to Discord")
+    report = notify_sub.add_parser("report", help="send the weekly report to Discord as embeds (fallback: summary + summary.md)")
     report.add_argument("--path", default=None, help="report file (default: reports/weekly/<date>.md, "
                                                       "else runs/<date>/summary.md)")
     report.add_argument("--date", default=None, help="run date YYYY-MM-DD (default: latest run)")

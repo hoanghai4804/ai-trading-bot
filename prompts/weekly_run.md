@@ -76,8 +76,8 @@ Read `runs/<D>/summary.md` (first line = MODE). Then `memory/strategy.md`, `memo
 ## Step 7 — report
 Report mode = `report=` from step 4 (`brief` if the run aborted), even if summary.md says otherwise
 (a forced full run is reported as unscheduled/brief there).
-Write `reports/weekly/<D>.md` following `prompts/templates/report_<mode>.md` (read the template;
-remove its HTML comments). Every number comes from summary.md / summary.json — never recompute.
+Write `reports/weekly/<D>.md` following `prompts/templates/report_<mode>.md` (read the template,
+follow its "CÁCH VIẾT" rules: plain Vietnamese, no code symbols, no tables; remove its HTML comments). Every number comes from summary.md / summary.json — never recompute.
 At the very top, right after the title, if there was any `WARNING:` line in step 4 (for example
 `TRADINGBOT_MODE` not set), a missing env var, a failed `git pull` or REHEARSAL mode, add:
 `> ⚠️ **CẢNH BÁO:** <one line per warning, in Vietnamese>` — e.g. "TRADINGBOT_MODE chưa đặt → chạy
@@ -104,7 +104,7 @@ FULL report only:
 BRIEF report: no WebSearch, no sentiment file.
 
 ## Step 8 — notify, memory, compact
-1. `$PY -m tradingbot notify report` (sends the summary + attaches the report). If it prints
+1. `$PY -m tradingbot notify report` (sends the report to Discord as embeds, readable on the phone). If it prints
    `NOT sent`: warning in the journal, continue (no retry loop).
 2. `memory/journal.md`: add a new entry right below the `## Older weeks` block (entries are newest
    first; if an entry `## <D>` already exists, replace it):

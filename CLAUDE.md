@@ -50,7 +50,7 @@ py -3.11 -m venv .venv
 .venv/Scripts/python -m tradingbot run         # weekly run, DRY-RUN unless --execute (paper orders)
 .venv/Scripts/python -m tradingbot test-order  # MANUAL only (never in the weekly run): 1 SPY + OTO stop, verify, close; --execute
 .venv/Scripts/python -m tradingbot backtest    # reports/backtest/ (walk-forward, 3 benchmarks)
-.venv/Scripts/python -m tradingbot notify report [--path reports/weekly/<date>.md]   # summary + attachment
+.venv/Scripts/python -m tradingbot notify report [--path reports/weekly/<date>.md]   # report as Discord embeds (no attachment)
 .venv/Scripts/python -m tradingbot notify-test # one test message to Discord
 .venv/Scripts/python -m tradingbot notify alert --level critical --message "..."   # weekly prompt only
 bash scripts/cloud_setup.sh                    # idempotent venv setup (cloud routine); last line PYTHON=<path>

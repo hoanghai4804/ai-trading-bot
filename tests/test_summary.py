@@ -109,13 +109,17 @@ def test_abort_summary(tmp_path):
 
 class Recorder:
     def __init__(self):
-        self.alerts, self.sent = [], []
+        self.alerts, self.sent, self.reports = [], [], []
 
     def alert(self, level, message):
         self.alerts.append((level, message))
 
-    def send(self, content, attachment=None):
+    def send(self, content, attachment=None, embeds=None):
         self.sent.append((content, attachment))
+        return True
+
+    def send_report(self, messages):
+        self.reports.append(messages)
         return True
 
 
@@ -159,11 +163,16 @@ def test_cli_notify_report_falls_back_to_summary_md(cli_env, tmp_path):
     assert attachment == out / "summary.md" and content.startswith(f"**Trading bot {TODAY}** - DRY-RUN")
 
 
-def test_cli_notify_report_attaches_the_report(cli_env, tmp_path):
+def test_cli_notify_report_sends_the_report_as_embeds(cli_env, tmp_path):
     result = run(FakeBroker(), tmp_path / "state", dry_run=True)
     write_run_outputs(result, CFG, runs_dir=tmp_path / "runs", state_dir=tmp_path / "state",
                       memory_dir=tmp_path / "memory")
     report = tmp_path / f"{TODAY}.md"
-    report.write_text("# Báo cáo\n", encoding="utf-8")
+    report.write_text("# Báo cáo tuần\n\n## 📌 Tóm tắt\n- Không có lệnh `nào`.\n", encoding="utf-8")
     assert cli._cmd_notify_report(Namespace(config=None, path=str(report), date=TODAY.isoformat())) == 0
-    assert cli_env.sent[0][1] == report and f"{TODAY}.md" in cli_env.sent[0][0]
+    assert cli_env.sent == []                       # no file to download any more
+    [messages] = cli_env.reports
+    embeds = messages[0]["embeds"]
+    assert [e["title"] for e in embeds] == ["📌 Tóm tắt"]
+    assert embeds[0]["description"] == "- Không có lệnh nào."
+    assert "Báo cáo tuần" in messages[0]["content"] and "chạy thử" in messages[0]["content"]
