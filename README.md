@@ -1,5 +1,7 @@
 # AI trading bot — weekly MA crossover on Alpaca PAPER
 
+*Tiếng Việt: [README.vi.md](README.vi.md)*
+
 A small but complete automated trading system, built to learn how real trading infrastructure is made
 safe: a deterministic Python core makes every decision, an independent risk manager can veto any order,
 and an LLM agent (Claude Code, running as a scheduled cloud routine) only orchestrates the run, reads a
@@ -60,6 +62,97 @@ rehearsal DRY-RUN on a day the market was closed, so no signal and no order).
   just-approved position is blocked.
 - Circuit breakers: previous week −5% → no new positions; drawdown ≥ 10% from peak → sell everything,
   write `state/HALT.lock`, all later runs stop until a human removes it.
+
+## Project structure
+```
+ai-trading-bot/
+├── CLAUDE.md                     # rules for Claude Code (paper only, no secrets, layout, key decisions)
+├── README.md / README.vi.md      # this file (English / Vietnamese)
+├── pyproject.toml                # package definition (src/ layout, `python -m tradingbot`)
+├── requirements.txt              # pinned dependencies
+├── .env.example                  # names of the required env vars (the real .env is never committed)
+├── .gitignore / .gitattributes   # ignored files (.env, cache, logs, venv) / LF line endings
+│
+├── config/
+│   └── config.yaml               # ALL parameters: watchlist, strategy, risk, costs, backtest, schedule, notify
+│
+├── src/tradingbot/
+│   ├── __init__.py / __main__.py # package marker / entry point of `python -m tradingbot`
+│   ├── cli.py                    # every CLI command (check, data, signals, should-run, run, backtest, notify...)
+│   ├── config.py                 # strict pydantic schema of config.yaml (mode must be paper, unknown keys rejected)
+│   ├── credentials.py            # reads API keys from env vars; repr hides the secrets
+│   ├── safety.py                 # paper guard (live endpoint / non-PA account -> abort), HALT.lock, run.lock
+│   ├── scheduling.py             # should-run: RUN / SKIP / HALT, DRY-RUN vs EXECUTE, signal window
+│   ├── pipeline.py               # run_weekly: account -> bars -> signals -> prices -> breakers -> risk -> executor
+│   ├── broker/
+│   │   └── alpaca_client.py      # thin Alpaca wrapper: account, clock, positions, orders, OTO buy, sells, cancel
+│   ├── data/
+│   │   └── market_data.py        # daily bars cut at as_of (+ parquet cache), raw closes, latest trade prices
+│   ├── indicators/
+│   │   └── technical.py          # SMA, true range, ATR (Wilder), daily returns, return correlation
+│   ├── strategies/
+│   │   ├── base.py               # Signal dataclass + Strategy interface
+│   │   ├── ma_crossover.py       # MA20/MA50 crossover: buy on a recent cross up, exit when MA20 < MA50
+│   │   └── registry.py           # strategy name in config -> class
+│   ├── risk/
+│   │   ├── sizing.py             # stop = ref - 2xATR, gap check, position size (1% risk, 5% cap, cash)
+│   │   ├── circuit_breakers.py   # previous-week loss, drawdown from peak, HALT trip
+│   │   └── manager.py            # RiskManager: independent review, veto with reason codes
+│   ├── execution/
+│   │   ├── orders.py             # deterministic order ids, weekly position count, last exits, open stops
+│   │   ├── executor.py           # dry-run | paper: OTO buy + stop, safe sell, halt liquidation, stop checks
+│   │   ├── stop_registry.py      # state/stops.json: original stop of each position, re-placed if missing
+│   │   └── test_order.py         # MANUAL end-to-end order check (1 SPY + stop, then close); never weekly
+│   ├── reporting/
+│   │   ├── run_text.py           # console output of a run (first line = MODE)
+│   │   ├── summary.py            # runs/<date>/summary.md, summary.json, decisions.json, memory/portfolio.md
+│   │   └── equity_log.py         # state/equity_history.csv (equity vs SPY, extra drawdown peak source)
+│   ├── monitoring/
+│   │   ├── execution_quality.py  # fill price vs reference -> slippage in bps (state/execution_quality.csv)
+│   │   └── shadow.py             # replays each live decision through the backtest path, alerts on mismatch
+│   ├── notify/
+│   │   └── discord.py            # Discord webhook: reports + alerts, never raises, URL never logged
+│   ├── memory/
+│   │   └── compact.py            # keeps 4 weeks of journal, moves older entries to journal_archive.md
+│   ├── sentiment/
+│   │   └── record.py             # validates + stores news sentiment (data only, never used for trading)
+│   └── backtest/
+│       ├── engine.py             # weekly replay with the SAME strategy/risk code as live (weekly_decision)
+│       ├── costs.py              # slippage (5 bps) + SEC/TAF fees
+│       ├── metrics.py            # return, Sharpe, max drawdown, exposure, trade stats
+│       ├── walk_forward.py       # train 3 y / test 6 m parameter search, out-of-sample run
+│       ├── benchmarks.py         # SPY buy & hold, SMA200 on SPY, random entries x50
+│       └── report.py             # reports/backtest/ (report.md, CSVs, equity.svg)
+│
+├── tests/                        # pytest, no network (HTTP blocked in conftest.py)
+│   ├── conftest.py               # shared fixtures, network block
+│   ├── fake_broker.py            # in-memory broker for executor/pipeline tests
+│   ├── fixtures/                 # real bars of week 2026-04-27 (parity test)
+│   └── test_*.py                 # one file per module (config, risk, executor, backtest parity, look-ahead...)
+│
+├── prompts/
+│   ├── weekly_run.md             # prompt of the scheduled cloud routine (steps + hard rules)
+│   └── templates/                # report_full.md / report_brief.md (weekly report templates, Vietnamese)
+├── scripts/
+│   └── cloud_setup.sh            # idempotent venv setup for the cloud routine; last line PYTHON=<path>
+├── docs/
+│   ├── PLAN.md                   # approved project plan
+│   ├── PROGRESS.md               # phase status, log, open issues (resume point)
+│   ├── ROUTINE_SETUP.md          # how to set up the Claude Code cloud routine
+│   └── examples/                 # example weekly report
+│
+├── memory/                       # LLM memory: strategy.md, lessons.md, journal.md, portfolio.md (Python-written)
+├── reports/
+│   ├── backtest/                 # backtest report, CSV tables, equity curve
+│   └── weekly/<date>.md          # weekly report written by the routine
+├── runs/<date>/                  # per run: summary.md (the only file the LLM reads), summary.json,
+│                                 #   decisions.json, sentiment.json
+├── state/                        # persistent state: HALT.lock, stops.json, equity_history.csv,
+│                                 #   last_run.json, execution_quality.csv (run.lock is never committed)
+└── data/
+    ├── sentiment/sentiment_log.csv  # news sentiment history (data only)
+    └── cache/                    # bar cache (git-ignored)
+```
 
 ## Safety layers
 | Layer | Mechanism |
