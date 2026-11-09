@@ -7,3 +7,9 @@ Tóm tắt: DRY-RUN chạy tay ngoài lịch (force-dry-run), 0 lệnh, 0 cảnh
 - Chưa đặt TRADINGBOT_MODE → DRY-RUN; thị trường đóng cửa (Chủ nhật).
 - Equity 100,000.00, chưa có vị thế, 0 tín hiệu.
 - Shadow check OK; chưa có dữ liệu trượt giá.
+
+## 2026-10-12
+Tóm tắt: DRY-RUN theo lịch (TRADINGBOT_MODE chưa đặt), 0 tín hiệu, 0 lệnh, 0 cảnh báo.
+- Thị trường mở; equity 100,000.00, chưa có vị thế.
+- Shadow check OK; chưa có dữ liệu trượt giá.
+- Tuần có CPI (thứ Tư) và báo cáo ngân hàng (JPM thứ Ba); tin chỉ để tham khảo.

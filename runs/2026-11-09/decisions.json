@@ -1,0 +1,63 @@
+{
+  "mode": "EXECUTE",
+  "signal_window_sessions": 5,
+  "today": "2026-11-09",
+  "as_of": "2026-11-08",
+  "dry_run": false,
+  "market_open": true,
+  "equity": 99749.6,
+  "cash": 99749.6,
+  "positions": {},
+  "new_positions_this_week": 0,
+  "stop_fills": [],
+  "signals": [],
+  "decision": {
+    "as_of": "2026-11-08",
+    "halt": false,
+    "breakers": {
+      "halt": false,
+      "block_new_entries": false,
+      "reasons": [],
+      "previous_week_return": 0.0,
+      "drawdown": 0.0025039999999999507,
+      "peak_equity": 100000.0,
+      "current_equity": 99749.6
+    },
+    "approved": [],
+    "blocked": []
+  },
+  "execution": {
+    "dry_run": false,
+    "market_open": true,
+    "orders_sent": 0,
+    "results": [],
+    "alerts": []
+  },
+  "warnings": [],
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 748.765
+  },
+  "performance": {
+    "since_last_run": {
+      "from": "2026-11-02",
+      "return": 0.0,
+      "benchmark_return": -0.018289924808087
+    },
+    "since_start": {
+      "from": "2026-10-19",
+      "return": -0.0025034015020408695,
+      "benchmark_return": -0.02582567345159803
+    }
+  },
+  "order_refs": {},
+  "shadow_check": {
+    "match": true,
+    "live": [],
+    "shadow": [],
+    "error": null,
+    "only_live": [],
+    "only_shadow": []
+  },
+  "fills": []
+}
