@@ -1,0 +1,130 @@
+{
+  "mode": "EXECUTE",
+  "status": "ok",
+  "report_mode": "full",
+  "scheduled": true,
+  "today": "2026-11-16",
+  "as_of": "2026-11-15",
+  "market_open": true,
+  "signal_window_sessions": 5,
+  "account": {
+    "equity": 99749.6,
+    "cash_before": 99749.6,
+    "cash": 94860.06,
+    "positions": 1,
+    "new_positions_this_week": 0
+  },
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 745.105
+  },
+  "performance": {
+    "since_last_run": {
+      "from": "2026-11-09",
+      "return": 0.0,
+      "benchmark_return": -0.004888048987332416
+    },
+    "since_start": {
+      "from": "2026-10-19",
+      "return": -0.0025034015020408695,
+      "benchmark_return": -0.030587485281968196
+    }
+  },
+  "breakers": {
+    "halt": false,
+    "block_new_entries": false,
+    "reasons": [],
+    "previous_week_return": 0.0,
+    "drawdown": 0.0025039999999999507,
+    "peak_equity": 100000.0,
+    "current_equity": 99749.6
+  },
+  "positions": [
+    {
+      "symbol": "JNJ",
+      "qty": 17.0,
+      "avg_entry": 287.62,
+      "price": 287.55,
+      "unrealized_pl": -1.19,
+      "unrealized_plpc": -0.00024,
+      "stop": 273.9
+    }
+  ],
+  "signals": [
+    {
+      "action": "buy",
+      "symbol": "JNJ"
+    }
+  ],
+  "approved": [
+    {
+      "side": "buy",
+      "symbol": "JNJ",
+      "qty": 17,
+      "ref_price": 287.53,
+      "stop_price": 273.9,
+      "reason": "MA20 crossed above MA50 3 session(s) ago"
+    }
+  ],
+  "blocked": [],
+  "orders": [
+    {
+      "side": "buy",
+      "symbol": "JNJ",
+      "status": "filled",
+      "qty": 17.0,
+      "fill_price": 287.62,
+      "stop_price": 273.9
+    }
+  ],
+  "orders_sent": 1,
+  "stop_fills": [],
+  "execution_quality": {
+    "new_fills": 1,
+    "this_run": {
+      "market": {
+        "n": 1,
+        "mean_bps": 3.13
+      },
+      "stop": {
+        "n": 0,
+        "mean_bps": null
+      }
+    },
+    "all_time": {
+      "market": {
+        "n": 2,
+        "mean_bps": 2.175
+      },
+      "stop": {
+        "n": 1,
+        "mean_bps": 0.33
+      }
+    },
+    "backtest_assumed_bps": 5.0
+  },
+  "shadow_check": {
+    "match": true,
+    "detail": "OK (live == backtest path: buy JNJ)"
+  },
+  "alerts": [],
+  "next_steps": {
+    "report_path": "reports/weekly/2026-11-16.md",
+    "template": "prompts/templates/report_full.md",
+    "sentiment_file": "runs/2026-11-16/sentiment.json",
+    "sentiment_symbols": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMZN",
+      "GOOGL",
+      "META",
+      "JPM",
+      "XOM",
+      "JNJ",
+      "PG",
+      "SPY"
+    ],
+    "max_web_searches": 4
+  }
+}

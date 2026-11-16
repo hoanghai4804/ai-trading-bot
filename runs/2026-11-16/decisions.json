@@ -1,0 +1,125 @@
+{
+  "mode": "EXECUTE",
+  "signal_window_sessions": 5,
+  "today": "2026-11-16",
+  "as_of": "2026-11-15",
+  "dry_run": false,
+  "market_open": true,
+  "equity": 99749.6,
+  "cash": 99749.6,
+  "positions": {},
+  "new_positions_this_week": 0,
+  "stop_fills": [],
+  "signals": [
+    {
+      "symbol": "JNJ",
+      "action": "buy",
+      "as_of": "2026-11-13",
+      "reason": "MA20 crossed above MA50 3 session(s) ago",
+      "cross_date": "2026-11-10",
+      "sessions_since_cross": 3,
+      "close": 285.75,
+      "fast_ma": 271.549,
+      "slow_ma": 266.86400000000003
+    }
+  ],
+  "decision": {
+    "as_of": "2026-11-15",
+    "halt": false,
+    "breakers": {
+      "halt": false,
+      "block_new_entries": false,
+      "reasons": [],
+      "previous_week_return": 0.0,
+      "drawdown": 0.0025039999999999507,
+      "peak_equity": 100000.0,
+      "current_equity": 99749.6
+    },
+    "approved": [
+      {
+        "symbol": "JNJ",
+        "side": "buy",
+        "qty": 17,
+        "reason": "MA20 crossed above MA50 3 session(s) ago",
+        "ref_price": 287.53,
+        "stop_price": 273.9,
+        "notional": 4888.009999999999,
+        "risk_amount": 231.70999999999992,
+        "limited_by": "position_cap"
+      }
+    ],
+    "blocked": []
+  },
+  "execution": {
+    "dry_run": false,
+    "market_open": true,
+    "orders_sent": 1,
+    "results": [
+      {
+        "symbol": "JNJ",
+        "side": "buy",
+        "status": "filled",
+        "detail": "",
+        "client_order_id": "tb-2026-11-16-JNJ-buy",
+        "order_id": "17454386-43e1-4a9d-b991-9a6b19ff50f4",
+        "qty": 17.0,
+        "fill_price": 287.62,
+        "stop_price": 273.9
+      }
+    ],
+    "alerts": []
+  },
+  "warnings": [],
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 745.105
+  },
+  "performance": {
+    "since_last_run": {
+      "from": "2026-11-09",
+      "return": 0.0,
+      "benchmark_return": -0.004888048987332416
+    },
+    "since_start": {
+      "from": "2026-10-19",
+      "return": -0.0025034015020408695,
+      "benchmark_return": -0.030587485281968196
+    }
+  },
+  "order_refs": {
+    "tb-2026-11-16-JNJ-buy": 287.53
+  },
+  "shadow_check": {
+    "match": true,
+    "live": [
+      [
+        "JNJ",
+        "buy"
+      ]
+    ],
+    "shadow": [
+      [
+        "JNJ",
+        "buy"
+      ]
+    ],
+    "error": null,
+    "only_live": [],
+    "only_shadow": []
+  },
+  "fills": [
+    {
+      "fill_date": "2026-11-16",
+      "order_id": "17454386-43e1-4a9d-b991-9a6b19ff50f4",
+      "client_order_id": "tb-2026-11-16-JNJ-buy",
+      "symbol": "JNJ",
+      "side": "buy",
+      "type": "market",
+      "qty": 17.0,
+      "ref_price": 287.53,
+      "ref_source": "decision",
+      "fill_price": 287.62,
+      "slippage_bps": 3.13
+    }
+  ]
+}
