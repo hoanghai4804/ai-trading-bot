@@ -1,0 +1,97 @@
+{
+  "mode": "EXECUTE",
+  "signal_window_sessions": 5,
+  "today": "2026-11-23",
+  "as_of": "2026-11-22",
+  "dry_run": false,
+  "market_open": true,
+  "equity": 99515.9,
+  "cash": 99515.9,
+  "positions": {},
+  "new_positions_this_week": 0,
+  "stop_fills": [
+    {
+      "symbol": "JNJ",
+      "qty": 17.0,
+      "price": 273.88,
+      "day": "2026-11-18"
+    }
+  ],
+  "signals": [],
+  "decision": {
+    "as_of": "2026-11-22",
+    "halt": false,
+    "breakers": {
+      "halt": false,
+      "block_new_entries": false,
+      "reasons": [],
+      "previous_week_return": -0.002342866537810795,
+      "drawdown": 0.004841000000000095,
+      "peak_equity": 100000.0,
+      "current_equity": 99515.9
+    },
+    "approved": [],
+    "blocked": []
+  },
+  "execution": {
+    "dry_run": false,
+    "market_open": true,
+    "orders_sent": 0,
+    "results": [],
+    "alerts": []
+  },
+  "warnings": [],
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 720.675
+  },
+  "performance": {
+    "since_last_run": {
+      "from": "2026-11-16",
+      "return": -0.002342866537810795,
+      "benchmark_return": -0.03278732527630346
+    },
+    "since_start": {
+      "from": "2026-10-19",
+      "return": -0.004840402904241814,
+      "benchmark_return": -0.06237192872894759
+    }
+  },
+  "order_refs": {},
+  "shadow_check": {
+    "match": true,
+    "live": [],
+    "shadow": [],
+    "error": null,
+    "only_live": [],
+    "only_shadow": []
+  },
+  "fills": [
+    {
+      "fill_date": "2026-11-16",
+      "order_id": "17454386-43e1-4a9d-b991-9a6b19ff50f4",
+      "client_order_id": "tb-2026-11-16-JNJ-buy",
+      "symbol": "JNJ",
+      "side": "buy",
+      "type": "market",
+      "qty": 17.0,
+      "ref_price": 287.53,
+      "ref_source": "decision",
+      "fill_price": 287.62,
+      "slippage_bps": 3.13
+    },
+    {
+      "fill_date": "2026-11-18",
+      "order_id": "8a147727-cf3b-4e8e-b305-013fe9fe45f1",
+      "client_order_id": "01850b9e-370d-43e0-b2f0-3fcc7e68666c",
+      "symbol": "JNJ",
+      "side": "sell",
+      "type": "stop",
+      "qty": 17.0,
+      "ref_price": 273.9,
+      "ref_source": "stop",
+      "fill_price": 273.88,
+      "slippage_bps": 0.73
+    }
+  ]
+}

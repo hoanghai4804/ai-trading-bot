@@ -1,0 +1,124 @@
+{
+  "date": "2026-11-23",
+  "web_searches": 4,
+  "items": [
+    {
+      "symbol": "AAPL",
+      "score": 0.4,
+      "confidence": 0.5,
+      "reason": "Apple near record high, only Magnificent Seven stock close to its peak; also hit $4T market cap milestone with Microsoft.",
+      "no_news": false,
+      "n_sources": 2,
+      "sources": [
+        "https://247wallst.com/investing/2026/11/18/apple-is-the-only-magnificent-seven-stock-near-a-record/",
+        "https://www.foxbusiness.com/markets/apple-microsoft-hit-4-trillion-milestone"
+      ]
+    },
+    {
+      "symbol": "MSFT",
+      "score": 0.2,
+      "confidence": 0.4,
+      "reason": "Microsoft rebounded this week while Apple and Alphabet fell; also part of the $4T market cap milestone group.",
+      "no_news": false,
+      "n_sources": 2,
+      "sources": [
+        "https://www.aol.com/finance/magnificent-7-news-microsoft-rebounds-191358643.html",
+        "https://www.foxbusiness.com/markets/apple-microsoft-hit-4-trillion-milestone"
+      ]
+    },
+    {
+      "symbol": "NVDA",
+      "score": -0.2,
+      "confidence": 0.3,
+      "reason": "Nvidia lost its market-cap crown back to Apple amid an AI-driven rally favoring Apple over chipmakers.",
+      "no_news": false,
+      "n_sources": 1,
+      "sources": [
+        "https://www.tipranks.com/news/nvidia-stock-nvda-swaps-crown-with-apple-stock-aapl-as-ai-frenzy-lifts-markets"
+      ]
+    },
+    {
+      "symbol": "AMZN",
+      "score": 0.4,
+      "confidence": 0.5,
+      "reason": "JPMorgan named Amazon (with Meta) a top internet pick over Alphabet, stock jumped roughly 5% on the news.",
+      "no_news": false,
+      "n_sources": 2,
+      "sources": [
+        "https://stocktwits.com/news-articles/markets/equity/meta-amzn-stocks-jump-as-jp-morgan-picks-pair-over-alphabet-sees-stronger-ai-returns-cloud-growth/cNGrWM0R97T",
+        "https://www.webull.com/news/15894359755441152"
+      ]
+    },
+    {
+      "symbol": "GOOGL",
+      "score": 0.1,
+      "confidence": 0.4,
+      "reason": "Alphabet lost JPMorgan's top internet pick spot to Meta and Amazon, but shares still rose about 3% on the week.",
+      "no_news": false,
+      "n_sources": 2,
+      "sources": [
+        "https://stocktwits.com/news-articles/markets/equity/meta-amzn-stocks-jump-as-jp-morgan-picks-pair-over-alphabet-sees-stronger-ai-returns-cloud-growth/cNGrWM0R97T",
+        "https://www.webull.com/news/15894359755441152"
+      ]
+    },
+    {
+      "symbol": "META",
+      "score": 0.5,
+      "confidence": 0.5,
+      "reason": "JPMorgan named Meta a top internet pick, citing Q3 2026 ad revenue up 26% year over year with accelerating North American growth.",
+      "no_news": false,
+      "n_sources": 2,
+      "sources": [
+        "https://stocktwits.com/news-articles/markets/equity/meta-amzn-stocks-jump-as-jp-morgan-picks-pair-over-alphabet-sees-stronger-ai-returns-cloud-growth/cNGrWM0R97T",
+        "https://www.webull.com/news/15894359755441152"
+      ]
+    },
+    {
+      "symbol": "JPM",
+      "score": 0.0,
+      "confidence": 0.0,
+      "reason": "No reliable news specific to JPMorgan stock found this week.",
+      "no_news": true,
+      "n_sources": 0,
+      "sources": []
+    },
+    {
+      "symbol": "XOM",
+      "score": 0.0,
+      "confidence": 0.0,
+      "reason": "No reliable news specific to Exxon Mobil stock found this week.",
+      "no_news": true,
+      "n_sources": 0,
+      "sources": []
+    },
+    {
+      "symbol": "JNJ",
+      "score": 0.0,
+      "confidence": 0.0,
+      "reason": "No reliable, clearly-dated news specific to Johnson & Johnson stock found this week.",
+      "no_news": true,
+      "n_sources": 0,
+      "sources": []
+    },
+    {
+      "symbol": "PG",
+      "score": 0.0,
+      "confidence": 0.0,
+      "reason": "No reliable news specific to Procter & Gamble stock found this week.",
+      "no_news": true,
+      "n_sources": 0,
+      "sources": []
+    },
+    {
+      "symbol": "SPY",
+      "score": -0.3,
+      "confidence": 0.5,
+      "reason": "S&P 500 fell for four straight sessions and closed at its lowest level since July amid broader market weakness.",
+      "no_news": false,
+      "n_sources": 1,
+      "sources": [
+        "https://stockanalysis.com/market-bullets/2026-11-18/?ksid=3031576619"
+      ]
+    }
+  ]
+}

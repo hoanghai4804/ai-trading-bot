@@ -1,0 +1,104 @@
+{
+  "mode": "EXECUTE",
+  "status": "ok",
+  "report_mode": "full",
+  "scheduled": true,
+  "today": "2026-11-23",
+  "as_of": "2026-11-22",
+  "market_open": true,
+  "signal_window_sessions": 5,
+  "account": {
+    "equity": 99515.9,
+    "cash_before": 99515.9,
+    "cash": 99515.9,
+    "positions": 0,
+    "new_positions_this_week": 0
+  },
+  "benchmark": {
+    "symbol": "SPY",
+    "price": 720.675
+  },
+  "performance": {
+    "since_last_run": {
+      "from": "2026-11-16",
+      "return": -0.002342866537810795,
+      "benchmark_return": -0.03278732527630346
+    },
+    "since_start": {
+      "from": "2026-10-19",
+      "return": -0.004840402904241814,
+      "benchmark_return": -0.06237192872894759
+    }
+  },
+  "breakers": {
+    "halt": false,
+    "block_new_entries": false,
+    "reasons": [],
+    "previous_week_return": -0.002342866537810795,
+    "drawdown": 0.004841000000000095,
+    "peak_equity": 100000.0,
+    "current_equity": 99515.9
+  },
+  "positions": [],
+  "signals": [],
+  "approved": [],
+  "blocked": [],
+  "orders": [],
+  "orders_sent": 0,
+  "stop_fills": [
+    {
+      "symbol": "JNJ",
+      "qty": 17.0,
+      "price": 273.88,
+      "day": "2026-11-18"
+    }
+  ],
+  "execution_quality": {
+    "new_fills": 2,
+    "this_run": {
+      "market": {
+        "n": 1,
+        "mean_bps": 3.13
+      },
+      "stop": {
+        "n": 1,
+        "mean_bps": 0.73
+      }
+    },
+    "all_time": {
+      "market": {
+        "n": 2,
+        "mean_bps": 2.175
+      },
+      "stop": {
+        "n": 2,
+        "mean_bps": 0.53
+      }
+    },
+    "backtest_assumed_bps": 5.0
+  },
+  "shadow_check": {
+    "match": true,
+    "detail": "OK (live == backtest path: no order)"
+  },
+  "alerts": [],
+  "next_steps": {
+    "report_path": "reports/weekly/2026-11-23.md",
+    "template": "prompts/templates/report_full.md",
+    "sentiment_file": "runs/2026-11-23/sentiment.json",
+    "sentiment_symbols": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMZN",
+      "GOOGL",
+      "META",
+      "JPM",
+      "XOM",
+      "JNJ",
+      "PG",
+      "SPY"
+    ],
+    "max_web_searches": 4
+  }
+}

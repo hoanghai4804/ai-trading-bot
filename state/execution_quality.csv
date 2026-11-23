@@ -2,3 +2,4 @@ fill_date,order_id,client_order_id,symbol,side,type,qty,ref_price,ref_source,fil
 2026-10-19,214f7672-3e69-434c-a444-d0931be90709,tb-2026-10-19-GOOGL-buy,GOOGL,buy,market,14.0,345.93,decision,345.972143,1.22
 2026-10-22,810fa38b-fa10-4716-aba4-adc21d84e1fa,d62091ac-3445-4c44-8cc1-7c5e0de1bb22,GOOGL,sell,stop,14.0,328.11,stop,328.099286,0.33
 2026-11-16,17454386-43e1-4a9d-b991-9a6b19ff50f4,tb-2026-11-16-JNJ-buy,JNJ,buy,market,17.0,287.53,decision,287.62,3.13
+2026-11-18,8a147727-cf3b-4e8e-b305-013fe9fe45f1,01850b9e-370d-43e0-b2f0-3fcc7e68666c,JNJ,sell,stop,17.0,273.9,stop,273.88,0.73

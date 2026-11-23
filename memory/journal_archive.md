@@ -20,3 +20,10 @@ Tóm tắt: EXECUTE theo lịch, 1 lệnh mua GOOGL đã khớp, 0 cảnh báo.
 - Không có lệnh bị chặn; breakers đều tắt.
 - Shadow check OK; trượt giá +1.2 bps (backtest giả định 5 bps).
 - Tìm tin nghèo nàn, sentiment ghi no_news cho cả 11 mã.
+
+## 2026-10-26
+Tóm tắt: EXECUTE theo lịch, 0 tín hiệu, 0 lệnh, 0 cảnh báo.
+- Stop GOOGL khớp giữa tuần (14 @ 328.099286, 2026-10-22); hiện không còn vị thế.
+- Equity 99,749.60; -0.25% so với SPY -0.19%; breakers đều tắt.
+- Shadow check OK; trượt giá lệnh thị trường +1.2 bps (backtest giả định 5 bps).
+- Tìm tin nghèo nàn (2 lượt), sentiment ghi no_news cho cả 11 mã.
